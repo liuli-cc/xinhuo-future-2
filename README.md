@@ -1,130 +1,427 @@
 # 薪火未来 · 大学生成长决策平台
 
-面向大学生的成长与职业规划平台。当前版本由腾讯云 CloudBase 静态网站托管、HTTP 云函数和文档数据库组成，适合中国大陆网络访问。
+面向大学生的 AI 驱动成长规划与智能职业匹配平台。
 
-## 功能
+当前阶段从 CloudBase 单体架构重构为 **FastAPI + MySQL 模块化单体**，
+支持三个业务组并行开发。
 
-- 学生学号与教师工号自助注册、分角色登录、失败锁定和设备会话
-- 学生档案、四年成长地图和自定义成长任务
-- 佐证文件上传、SHA-256 完整性记录、多角色审核和真实进度计算
-- XH-EGM-2.0 证据型能力画像与公开评分方法
-- XH-DPE-1.0 目标差距和动态行动优先级
-- XH-JFM-1.0 真实岗位快照、证据型匹配、投递复盘与成长补强闭环
-- XH-SIE-3.0 六厂商动态模拟面试、100 分制规则计分、口语表达分析与 PDF/Word 报告导出
-- 内蒙古师范大学人工智能学院导师中心
-- 新账号审核、停用与恢复；教师按院系和班级管理学生，管理员管理全范围账号
-- 独立教师工作台、学生账号审核、成长佐证审核与班级归属校正
-- 个人数据导出、7 天注销撤销期和管理员辅助密码找回
-- 管理员用户统计、佐证审核、文件容量预警和注销处理
+---
 
-成长规划仍由确定性规则引擎生成。模拟面试支持用户临时连接 DeepSeek、Kimi、智谱 GLM、通义千问、MiMo 或豆包官方 API：外部模型只负责生成问题、动态追问和提取回答依据，最终分数仍由 XH-SIE 规则引擎计算。API Key 仅保存在当前页面内存，不写入数据库、日志或源码。完整方法见 [`docs/CORE-V2.md`](docs/CORE-V2.md)。
+## 当前开发状态
 
-## 数据规则
+| Phase | 内容 | 状态 |
+|-------|------|------|
+| Phase 1 | FastAPI + MySQL + Docker 工程底座 | ✅ 完成 |
+| Phase 1.1 | 三组业务职责重新对齐 + 架构纠偏 | ✅ 完成 |
+| Phase 2 | 跨组 Contract + Mock + Backlog 建设 | ✅ 完成 |
+| Phase 2.x | 三组正式业务开发 | 🔜 即将开始 |
 
-账号、学生档案、成长任务、能力证据、模拟面试、岗位快照、匹配报告和投递过程全部保存在 CloudBase 文档数据库。静态网页只在浏览器 `localStorage` 中保存一枚有期限的随机会话令牌；密码散列、业务记录和数据库访问身份都不进入前端代码。
+> **重要**: Backlog 中列出的业务功能尚未实现。当前仅完成了工程架构、数据库模型、API 骨架和跨组契约。
 
-新注册学生和教师默认进入 `pending` 状态：学生由本班教师或管理员审核，教师由管理员核验工号、院系与负责班级。审核通过前不能登录；驳回和停用原因会明确反馈给账号本人。
+---
 
-新注册学生的任务进度、能力指数和职业准备度从 0 开始。学生提交文件、成果链接、证书编号、教务记录或教师评价后，佐证先进入人工审核；只有 `verified` 状态的佐证才会完成任务并增加进度。
+## 技术栈
 
-## 主要数据集合
+| 层 | 技术 | 版本 |
+|----|------|------|
+| Frontend | Next.js + React + TypeScript | 16.x / 19.x |
+| Backend | FastAPI (Python) | 0.136+ |
+| Database | MySQL | 8.0+ |
+| ORM | SQLAlchemy | 2.0+ |
+| Migration | Alembic | 1.19+ |
+| Validation | Pydantic | 2.13+ |
+| Testing | pytest | 9.x |
+| File Storage | 腾讯云 COS | — |
+| Deployment | Docker + 腾讯云 | — |
+| Architecture | 模块化单体 (Modular Monolith) | — |
 
-- `xh_users`：学号或工号、角色、审核状态、学籍资料和密码派生结果
-- `xh_sessions`：不可逆摘要作为主键的登录会话
-- `xh_growth_tasks`：每位学生独立的成长任务
-- `xh_evidence`、`xh_evidence_files`、`xh_evidence_reviews`：佐证、附件和审核历史
-- `xh_interview_sessions`：结构化面试答案和可解释报告
-- `xh_career_jobs`、`xh_career_matches`：学生导入的岗位快照和证据匹配
-- `xh_career_applications`、`xh_career_events`：投递阶段与复盘历史
-- `xh_recommendation_feedback`：行动建议反馈
-- `xh_audit_logs`：关键账号、审核和隐私操作审计
-- `xh_recovery_requests`、`xh_deletion_requests`：账号恢复与带撤销期的注销流程
-- `xh_cloud_state`：收藏、对话等轻量个人状态
+**旧系统**: CloudBase Node.js 后端 (`functions/xinhuo-api/`) 暂时保留，仅用于迁移参考和接口行为对照。
 
-密码使用 PBKDF2-SHA256、随机盐和 310,000 次迭代派生；旧版本哈希在修改密码前兼容验证。管理员初始化参数和数据库连接只通过服务端环境变量提供，不写入前端代码。
+---
 
-## 外部面试模型
+## 项目目录结构
 
-`/api/interview/model` 只允许访问三家预设的官方对话接口，不接受自定义 Base URL：
+```
+xinhuo-future-main/
+├── app/                     # Next.js 前端 (App Router)
+│   ├── page.tsx             # 登录/注册首页
+│   ├── components/          # 共享组件
+│   ├── dashboard/           # Group2 — 仪表盘
+│   ├── growth-map/          # Group2 — 成长地图
+│   ├── portrait/            # Group2 — 能力画像
+│   ├── ai/                  # Group2 — 成长决策
+│   ├── interview/           # Group1 — AI模拟面试
+│   ├── career/              # Group3 — 职业发展
+│   ├── account/             # Shared — 个人中心
+│   ├── admin/               # Shared — 管理中心
+│   ├── teacher/             # Shared — 教师工作台
+│   └── resources/           # Shared — 资源中心
+│
+├── backend/                 # FastAPI 后端
+│   ├── app/
+│   │   ├── main.py          # FastAPI 入口
+│   │   ├── core/            # 配置/安全/异常/日志/权限
+│   │   ├── db/              # SQLAlchemy Base + Session
+│   │   ├── modules/         # 业务模块 (见下表)
+│   │   ├── contracts/       # 跨组数据契约 (Pydantic DTO)
+│   │   ├── integrations/    # COS/LLM/ASR/TTS/OCR
+│   │   └── tests/           # pytest
+│   ├── alembic/             # 数据库迁移
+│   ├── scripts/             # 导入脚本
+│   ├── docker-compose.yml   # 本地开发环境
+│   └── .env.example         # 环境变量模板
+│
+├── functions/xinhuo-api/    # 旧 CloudBase Node 后端 (保留)
+├── lib/                     # 前端业务引擎 (TypeScript)
+├── tests/                   # 前端测试
+├── docs/                    # 项目文档
+└── .github/                 # CODEOWNERS
+```
 
-- DeepSeek：`https://api.deepseek.com/chat/completions`
-- Kimi：`https://api.moonshot.cn/v1/chat/completions`
-- 智谱 GLM：`https://open.bigmodel.cn/api/paas/v4/chat/completions`
-- 通义千问：`https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions`
-- MiMo：`https://api.xiaomimimo.com/v1/chat/completions`
-- 豆包：`https://ark.cn-beijing.volces.com/api/v3/chat/completions`
-- Kimi：`https://api.moonshot.cn/v1/chat/completions`
-- 智谱 GLM：`https://open.bigmodel.cn/api/paas/v4/chat/completions`
+### 后端模块归属
 
-用户在模拟面试页面选择服务商、填写模型名称和自己的 API Key，并明确同意将本次面试文本发送给该服务商。若关联某条本人投递记录，服务端会再次校验归属，并把岗位原文作为不可执行的参考材料交给模型。密钥随当前请求经 HTTPS 传给服务端代理，调用结束后立即丢弃；页面刷新、结束面试或生成报告后，浏览器内存中的密钥也会清除。
+| 目录 | 归属 | 职责 |
+|------|------|------|
+| `backend/app/modules/auth/` | Shared | 认证/登录 |
+| `backend/app/modules/users/` | Shared | 用户/学生/教师档案 |
+| `backend/app/modules/reference/` | Shared | 标准字典 |
+| `backend/app/modules/organization/` | Shared | 学校/学院/专业 |
+| `backend/app/modules/admission/` | Shared | 招生数据 |
+| `backend/app/modules/admin/` | Shared | 管理/审计 |
+| `backend/app/modules/files/` | Shared | 统一文件存储 |
+| `backend/app/modules/imports/` | Shared | 数据导入 |
+| `backend/app/modules/resume/` | Group1 | AI简历 |
+| `backend/app/modules/interview/` | Group1 | AI面试 |
+| `backend/app/modules/evidence/` | Group2 | 证据管理 |
+| `backend/app/modules/growth/` | Group2 | 画像/成长/榜样 |
+| `backend/app/modules/employment/` | Group3 | 就业数据 |
+| `backend/app/modules/career/` | Group3 | 岗位/匹配/投递 |
 
-DeepSeek 面试调用会显式关闭思考模式，避免连接测试或结构化追问的输出额度被推理内容占用；正式面试请求同时启用 JSON 输出模式，提升问题和分析结果的稳定性。
+---
 
-面试结束后，平台会按经历内容、岗位匹配、专业深度、逻辑结构和语言表达五个维度生成 100 分制报告，给出回答亮点、改进建议、三步行动计划和逐题证据。语言表达维度会记录语速、停顿、回答前思考时间和“嗯、啊”等口头语密度，但不会因为正常思考停顿机械扣分。用户可以在任意已完成一轮回答后选择“结束并生成报告”，报告即使暂时无法保存到云端也会先在当前浏览器中生成，并支持下载 Markdown、Word 和 PDF。
+## 三组正式职责
 
-## 简历识别边界
+### Group1 — AI简历 + AI模拟面试
 
-- PDF、DOC、DOCX、TXT、Markdown、JPG、JPEG、PNG、WebP 和 BMP 单文件最大 3MB。
-- 文本型 PDF、Word 和纯文本文件由云函数提取；结构化解析会识别基本信息、学历、专业、技能、项目、实习和竞赛栏目。
-- 图片简历和扫描版 PDF 使用浏览器内置的中英文 OCR；扫描 PDF 当前最多识别前 4 页。清晰、端正的印刷体效果最佳，模糊、倾斜、手写或复杂多栏图片仍可能需要人工校正。
-- 系统不会根据图片或缺失栏目编造经历；识别结果应由用户在预览区核对和修改。
+- 长期分支: `group1-dev`
+- Backlog: [docs/GROUP1-BACKLOG.md](docs/GROUP1-BACKLOG.md)
+- 拥有: resume, interview, llm, asr, tts, ocr
+- 前端: `/interview`
 
-## 本地开发
+### Group2 — 任务匹配 + 榜样激励
 
-需要 Node.js `>=22.13.0`：
+- 长期分支: `group2-dev`
+- Backlog: [docs/GROUP2-BACKLOG.md](docs/GROUP2-BACKLOG.md)
+- 拥有: evidence, growth (含 assessment, portrait, role_models)
+- 前端: `/dashboard`, `/growth-map`, `/portrait`, `/ai`
+
+### Group3 — 智能岗位匹配
+
+- 长期分支: `group3-dev`
+- Backlog: [docs/GROUP3-BACKLOG.md](docs/GROUP3-BACKLOG.md)
+- 拥有: employment, career (含 candidate_pushes, authorizations)
+- 前端: `/career`
+
+### Shared/Core — 平台公共底座
+
+- 不属于任何单一业务组，由项目维护者管理
+- 拥有: auth, users, reference, organization, admission, admin, files, imports
+- 所有组都可以读取，禁止各组创建自己的 student/job/file 表
+
+---
+
+## 组间数据关系
+
+```
+Shared Student Data
+  → Group2 基线测评 / 画像 / 成长任务
+    → Group1 AI简历 / 模拟面试
+    → Group3 岗位匹配 / 投递
+
+同时: Group3 的岗位/JD 被 Group1 和 Group2 使用
+```
+
+详细数据流: [docs/BUSINESS-DATA-FLOW.md](docs/BUSINESS-DATA-FLOW.md)
+跨组依赖分析: [docs/CROSS-GROUP-DEPENDENCIES.md](docs/CROSS-GROUP-DEPENDENCIES.md)
+
+---
+
+## 本地启动
+
+### 前提
+
+- Node.js >= 22.13
+- Python >= 3.12
+- Docker Desktop
+
+### 1. Clone 项目
+
+```bash
+git clone <repo-url> xinhuo-future
+cd xinhuo-future
+git checkout groupX-dev   # 切换到你的组分支
+```
+
+### 2. 前端
 
 ```bash
 npm install
-NEXT_PUBLIC_API_BASE="https://你的环境.service.tcloudbase.com/api" npm run dev
+npm run dev               # http://localhost:3000
 ```
 
-常用命令：
+### 3. 后端
 
 ```bash
-npm run lint
-npm test
-npm run build
-npm run db:generate
+cd backend
+
+# 复制环境变量
+cp .env.example .env
+
+# 安装依赖
+pip install -r requirements.txt
+pip install aiomysql
+
+# 启动 MySQL + FastAPI
+docker compose up -d
+
+# 运行数据库迁移
+docker compose exec backend alembic upgrade head
+
+# 或本地启动:
+# alembic upgrade head
+# uvicorn app.main:app --reload --port 8000
 ```
 
-## CloudBase 部署
+### 4. 验证
 
-- `functions/xinhuo-api/`：Node.js 20 事件函数，通过 HTTP 访问服务映射到 `/api`
-- `functions/xinhuo-api/faculty.json`：云函数使用的导师公开资料快照
-- `cloudbaserc.json`：当前 CloudBase 环境
-- `next.config.ts`：输出纯静态站点
-- `db/`、`drizzle-postgres/` 和 `legacy/`：旧 PostgreSQL/Next API 版本的迁移参考，不参与当前生产运行
+```
+http://localhost:8000/health   → {"ok": true}
+http://localhost:8000/docs     → Swagger UI
+http://localhost:3000          → 前端
+```
 
-当前生产环境：
-
-- 环境 ID：`xinhuo-d8gxyksn2f7095c5a`
-- API：`https://xinhuo-d8gxyksn2f7095c5a.service.tcloudbase.com/api`
-- 静态站点：`https://xinhuo-d8gxyksn2f7095c5a-1459723948.tcloudbaseapp.com`
-
-部署顺序：
+### 5. 导入参考数据
 
 ```bash
-cd functions/xinhuo-api
-tcb fn deploy xinhuo-api --env-id xinhuo-d8gxyksn2f7095c5a --dir . --force
-cd ../..
-NEXT_PUBLIC_API_BASE="https://xinhuo-d8gxyksn2f7095c5a.service.tcloudbase.com/api" npm run build -- --webpack
-tcb hosting deploy out / --env-id xinhuo-d8gxyksn2f7095c5a
+cd backend
+python scripts/import_reference_data.py --type all
 ```
 
-首次部署还需在 CloudBase HTTP 访问服务中把 `/api` 映射到 `xinhuo-api`，并开启路径透传。管理员只能通过数据库安全初始化，不能经公开注册接口创建。
+### 6. 运行测试
 
-## 导师数据
+```bash
+cd backend
+pytest                        # 全部测试 (13+)
+```
 
-导师中心仅收录内蒙古师范大学人工智能学院公开师资信息：
+---
 
-- `data/imnu-ai-faculty.ts`：经过核对的学院师资快照
-- `scripts/fetch-imnu-faculty.mjs`：官网公开资料更新辅助脚本
-- `functions/xinhuo-api/index.js`：导师目录接口
+## 环境变量
 
-数据源：[教师名录](https://sai.imnu.edu.cn/faculty/jsml.htm) 与 [导师名录](https://sai.imnu.edu.cn/faculty/dsml.htm)。
+```bash
+cp backend/.env.example backend/.env
+```
 
-## 参考
+必须填写的变量:
 
-- [CloudBase 静态网站托管](https://docs.cloudbase.net/hosting/introduce)
-- [CloudBase 云函数](https://docs.cloudbase.net/cloud-function/introduce)
-- [CloudBase 文档数据库](https://docs.cloudbase.net/database/introduce)
+| 变量 | 说明 |
+|------|------|
+| `MYSQL_HOST` / `MYSQL_PASSWORD` | MySQL 连接 |
+| `SECRET_KEY` | 随机字符串 (生产环境必须更换) |
+| `COS_SECRET_ID` / `COS_SECRET_KEY` / `COS_BUCKET` | 腾讯云 COS (Phase 2) |
+| `TENCENT_SECRET_ID` / `TENCENT_SECRET_KEY` | ASR/TTS (Phase 2) |
+
+**禁止提交 `.env` 到 Git。**
+
+---
+
+## Git 开发流程
+
+```
+main          ← 稳定/生产 (禁止直接 Push)
+  ↑ PR
+develop       ← 集成 (通过 PR 从 groupX-dev 合并)
+  ↑ PR
+group1-dev    ← Group1 长期开发
+group2-dev    ← Group2 长期开发
+group3-dev    ← Group3 长期开发
+  ↑ PR
+feature/gX-xxx ← 个人开发分支
+```
+
+### 个人开发流程
+
+```bash
+git checkout groupX-dev
+git pull
+git checkout -b feature/gX-任务编号
+# 开发...
+git add -A
+git commit -m "feat: 任务描述"
+git push origin feature/gX-任务编号
+# 在 GitHub 创建 PR → groupX-dev
+```
+
+### Feature Branch 命名
+
+```
+Group1:  feature/g1-resume-generation
+Group2:  feature/g2-baseline-assessment
+Group3:  feature/g3-job-match
+Shared:  feature/shared-xxx
+```
+
+---
+
+## 如何领取任务
+
+各组的 Backlog 见:
+
+- [Group1 Backlog](docs/GROUP1-BACKLOG.md) — 任务编号 G1-01 ~ G1-11
+- [Group2 Backlog](docs/GROUP2-BACKLOG.md) — 任务编号 G2-01 ~ G2-08
+- [Group3 Backlog](docs/GROUP3-BACKLOG.md) — 任务编号 G3-01 ~ G3-09
+
+任务编号对应 Feature Branch 名称，如 `G1-02` → `feature/g1-resume-generation`。
+
+---
+
+## 跨组依赖怎么办
+
+**不要等待其他组功能完成。** 使用公共 Contract 和 Mock 独立开发:
+
+```python
+# 当 Group3 开发匹配引擎时，Group2 的画像还没完成:
+from app.tests.fixtures.mock_data import make_student_portrait
+portrait = make_student_portrait(user_id=1)
+```
+
+- 公共 Contract: `backend/app/contracts/`
+- Mock 数据: `backend/app/tests/fixtures/mock_data.py`
+- 跨组契约文档: [docs/API-CONTRACTS.md](docs/API-CONTRACTS.md)
+
+> **禁止**: 为了开发方便复制其他组的数据库表或业务逻辑。
+> 跨组数据必须通过 Contract 和 Service 接口获取。
+
+---
+
+## 数据库开发规范
+
+- 所有表结构变更必须通过 **Alembic Migration**
+- 禁止手工修改数据库后不写 Migration
+- 禁止一组创建另一套 `student` / `job` / `file` 表
+- 详见: [docs/DATABASE-DESIGN.md](docs/DATABASE-DESIGN.md), [docs/MODULE-BOUNDARIES.md](docs/MODULE-BOUNDARIES.md)
+
+---
+
+## API 开发规范
+
+每个模块遵循 **Router → Service → Repository → Model → Schema** 五层:
+
+| 层 | 文件 | 职责 |
+|----|------|------|
+| Router | `router.py` | HTTP 请求/响应处理 |
+| Service | `service.py` | 业务逻辑 |
+| Repository | `repository.py` | 数据库读写 |
+| Model | `model.py` | SQLAlchemy 表定义 |
+| Schema | `schema.py` | Pydantic 请求/响应模型 |
+
+> **禁止**: 把所有逻辑塞进 Router。
+
+---
+
+## 文件管理
+
+- 文件上传至 **腾讯云 COS**
+- MySQL `files` 表仅保存元数据和 `object_key`
+- **禁止**: 将 Base64 文件直接长期存入 MySQL
+
+---
+
+## 测试
+
+```bash
+cd backend
+pytest                          # 全部测试
+pytest -m unit                  # 仅单元测试
+pytest app/tests/test_boundaries.py  # 模块边界测试
+```
+
+PR 提交前必须:
+```bash
+pytest                          # 全部通过
+```
+
+---
+
+## Legacy 旧系统
+
+`functions/xinhuo-api/` 是旧 CloudBase Node.js 后端。
+
+- **禁止新业务写入旧后端**
+- 仅用于: 迁移参考 / 接口行为对照 / 兼容旧前端
+- 只有在对应 FastAPI 模块迁移完成并通过测试后才能删除
+
+---
+
+## 当前未完成内容
+
+| 模块 | 状态 |
+|------|------|
+| Shared — auth (login/me/logout) | READY |
+| Shared — users/{id} | READY |
+| Shared — reference/* | READY |
+| Shared — organization/* | READY |
+| Shared — files/upload | READY |
+| Shared — imports/batches | READY |
+| Shared — account/sessions/deletion | NOT STARTED |
+| Group1 — 全部业务功能 | NOT STARTED |
+| Group2 — 全部业务功能 | NOT STARTED |
+| Group3 — 全部业务功能 | NOT STARTED |
+
+---
+
+## 项目文档导航
+
+### 必读 (首次加入必看)
+
+| # | 文档 | 内容 |
+|---|------|------|
+| 1 | [README.md](README.md) | 你正在看 — 项目总览 |
+| 2 | [docs/TEAM-OWNERSHIP.md](docs/TEAM-OWNERSHIP.md) | 哪个组管哪些模块 |
+| 3 | 你的 Group Backlog | [G1](docs/GROUP1-BACKLOG.md) / [G2](docs/GROUP2-BACKLOG.md) / [G3](docs/GROUP3-BACKLOG.md) |
+| 4 | [docs/API-CONTRACTS.md](docs/API-CONTRACTS.md) | 跨组数据契约 |
+| 5 | [docs/CROSS-GROUP-DEPENDENCIES.md](docs/CROSS-GROUP-DEPENDENCIES.md) | 依赖关系与 Mock 开发指南 |
+| 6 | [backend/README.md](backend/README.md) | 后端环境搭建详情 |
+
+### 架构与设计
+
+| 文档 | 内容 |
+|------|------|
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 系统架构图 + 技术选型 |
+| [docs/DATABASE-DESIGN.md](docs/DATABASE-DESIGN.md) | 数据库 ER 图 + 设计决策 |
+| [docs/MODULE-BOUNDARIES.md](docs/MODULE-BOUNDARIES.md) | 表所有权 + 读写权限 |
+| [docs/BUSINESS-DATA-FLOW.md](docs/BUSINESS-DATA-FLOW.md) | 跨组数据流 Mermaid 图 |
+
+### 开发参考
+
+| 文档 | 内容 |
+|------|------|
+| [docs/API-CONTRACTS.md](docs/API-CONTRACTS.md) | API 契约 + 公共 ID 体系 |
+| [docs/API-MIGRATION.md](docs/API-MIGRATION.md) | 旧 API 迁移状态追踪 |
+| [docs/CROSS-GROUP-DEPENDENCIES.md](docs/CROSS-GROUP-DEPENDENCIES.md) | 依赖分析 + 并行开发计划 |
+
+### 阶段报告
+
+| 文档 | 内容 |
+|------|------|
+| [docs/PHASE1-ACCEPTANCE.md](docs/PHASE1-ACCEPTANCE.md) | Phase 1 验收结果 |
+| [docs/PHASE1.1-CORRECTION-REPORT.md](docs/PHASE1.1-CORRECTION-REPORT.md) | 业务边界修正 |
+| [docs/PHASE2-PREPARATION-REPORT.md](docs/PHASE2-PREPARATION-REPORT.md) | Phase 2 准备完成 |
+
+### 历史参考
+
+| 文档 | 内容 |
+|------|------|
+| [docs/CORE-V2.md](docs/CORE-V2.md) | 旧系统核心算法文档 |
+| [docs/DEVLOG-2026-07-28.md](docs/DEVLOG-2026-07-28.md) | 开发日志 |
+| [docs/ROLLBACK.md](docs/ROLLBACK.md) | 回滚指南 |
