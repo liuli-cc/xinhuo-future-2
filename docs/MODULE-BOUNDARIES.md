@@ -1,207 +1,153 @@
-# 薪火未来 — 模块边界与数据所有权
+# 薪火未来 — 模块边界与数据所有权 (v2.0 修正版)
 
 ## 核心原则
 
-1. **每张表有且仅有一个 Owner Module**
-2. **只有 Owner 可以直接写入 (INSERT/UPDATE/DELETE)**
-3. **其他模块只读 (SELECT)**，通过 Owner 提供的 Service 接口获取数据
-4. **禁止跨模块直接修改数据**，必须通过 API 或 Service 调用
+1. **Shared/Core** 拥有所有平台基础数据和基础设施
+2. **Group1/2/3** 各自拥有业务数据，不拥有平台基础
+3. **只有 Owner 可以直接写入** (INSERT/UPDATE/DELETE)
+4. **其他模块只读** (SELECT)，通过 Owner 提供的 Service 接口获取
+5. **禁止跨模块直接修改他人数据**
 
 ---
 
-## 表 → Owner 映射
+## 表 → Owner 映射 (完整版)
 
-### Reference Layer (标准字典)
+### Shared/Core — 平台基础
 
-| 表名 | Owner | 可写 | 只读 |
-|------|-------|------|------|
-| `ref_major_standard` | reference | reference | 所有模块 |
-| `ref_job_standard` | reference | reference | 所有模块 |
-| `ref_code_values` | reference | reference | 所有模块 |
+| 表名 | Owner | Group1 | Group2 | Group3 |
+|------|-------|--------|--------|--------|
+| `users` | SHARED | R | R | R |
+| `student_profiles` | SHARED | R | R | R |
+| `student_private_profiles` | SHARED | — | — | — |
+| `teacher_profiles` | SHARED | R | R | R |
+| `user_sessions` | SHARED | — | — | — |
+| `ref_major_standard` | SHARED | R | R | R |
+| `ref_job_standard` | SHARED | R | R | R |
+| `ref_code_values` | SHARED | R | R | R |
+| `universities` | SHARED | R | R | R |
+| `colleges` | SHARED | R | R | R |
+| `university_major_programs` | SHARED | R | R | R |
+| `student_admissions` | SHARED | — | R | R |
+| `student_admission_scores` | SHARED | — | R | R |
+| `audit_logs` | SHARED | W* | W* | W* |
+| `recovery_requests` | SHARED | — | — | — |
+| `deletion_requests` | SHARED | — | — | — |
+| `files` | SHARED | RW | RW | RW |
+| `data_import_batches` | SHARED | — | — | — |
+| `data_import_rows` | SHARED | — | — | — |
+| `cloud_states` | SHARED | R | R | R |
 
-### Organization Layer (组织)
+*\* audit_logs: 各组通过 Shared 提供的 Service 写入审计日志*
 
-| 表名 | Owner | 可写 | 只读 |
-|------|-------|------|------|
-| `universities` | organization | organization | 所有模块 |
-| `colleges` | organization | organization | 所有模块 |
-| `university_major_programs` | organization | organization | admission, employment, users |
+### Group1 — AI简历 + AI模拟面试
 
-### Users Layer (用户)
+| 表名 | Owner | Group2 | Group3 |
+|------|-------|--------|--------|
+| `generated_resumes` | GROUP1 | R | R |
+| `resume_templates` | GROUP1 | — | — |
+| `interview_sessions` | GROUP1 | R | R |
+| `resume_upload_chunks` | GROUP1 | — | — |
 
-| 表名 | Owner | 可写 | 只读 |
-|------|-------|------|------|
-| `users` | users | users, auth | 所有模块 (仅公开字段) |
-| `student_profiles` | users | users | admission, employment, career |
-| `student_private_profiles` | users | users | 无 (默认不公开) |
-| `teacher_profiles` | users | users | admin |
-| `user_sessions` | auth | auth | users |
+### Group2 — 任务匹配 + 榜样激励
 
-### Admission Layer (招生)
+| 表名 | Owner | Group1 | Group3 |
+|------|-------|--------|--------|
+| `baseline_assessments` | GROUP2 | — | R |
+| `student_portraits` | GROUP2 | R | R |
+| `growth_plans` | GROUP2 | — | R |
+| `growth_tasks` | GROUP2 | — | R |
+| `growth_task_progress` | GROUP2 | — | R |
+| `evidence` | GROUP2 | — | — |
+| `evidence_reviews` | GROUP2 | — | — |
+| `evidence_files` | GROUP2 | — | — |
+| `role_models` | GROUP2 | — | — |
+| `role_model_experiences` | GROUP2 | — | — |
+| `role_model_milestones` | GROUP2 | — | — |
+| `role_model_matches` | GROUP2 | — | — |
 
-| 表名 | Owner | 可写 | 只读 |
-|------|-------|------|------|
-| `student_admissions` | admission | admission, imports | users, employment |
-| `student_admission_scores` | admission | admission, imports | users |
+### Group3 — 智能岗位匹配
 
-### Employment Layer (就业)
-
-| 表名 | Owner | 可写 | 只读 |
-|------|-------|------|------|
-| `employers` | employment | employment, imports | career |
-| `student_employments` | employment | employment, imports | career, users |
-| `employment_reviews` | employment | employment | admin |
-| `study_abroad_records` | employment | employment, imports | users |
-| `graduate_administration` | employment | employment, imports | admin |
-
-### Evidence Layer (证据)
-
-| 表名 | Owner | 可写 | 只读 |
-|------|-------|------|------|
-| `evidence` | evidence | evidence | growth, career, admin |
-| `evidence_reviews` | evidence | evidence | admin |
-| `evidence_files` | evidence | evidence | files |
-
-### Growth Layer (成长)
-
-| 表名 | Owner | 可写 | 只读 |
-|------|-------|------|------|
-| `growth_tasks` | growth | growth | evidence, career |
-| `cloud_states` | growth | growth | career, interview |
-
-### Career Layer (职业)
-
-| 表名 | Owner | 可写 | 只读 |
-|------|-------|------|------|
-| `career_jobs` | career | career | interview, decision |
-| `career_matches` | career | career | decision |
-| `career_applications` | career | career | interview |
-| `career_events` | career | career | interview |
-| `recommendation_feedback` | career | career, decision | admin |
-
-### Interview Layer (面试)
-
-| 表名 | Owner | 可写 | 只读 |
-|------|-------|------|------|
-| `interview_sessions` | interview | interview | career, admin |
-| `resume_upload_chunks` | interview | interview | 无 |
-
-### Admin Layer (管理)
-
-| 表名 | Owner | 可写 | 只读 |
-|------|-------|------|------|
-| `audit_logs` | admin | admin, (所有模块通过Service) | admin |
-| `recovery_requests` | admin | admin, auth | admin |
-| `deletion_requests` | admin | admin, users | admin |
-
-### Files Layer (文件)
-
-| 表名 | Owner | 可写 | 只读 |
-|------|-------|------|------|
-| `files` | files | files | 所有模块 |
-
-### Imports Layer (导入)
-
-| 表名 | Owner | 可写 | 只读 |
-|------|-------|------|------|
-| `data_import_batches` | imports | imports | admin |
-| `data_import_rows` | imports | imports | admin |
+| 表名 | Owner | Group1 | Group2 |
+|------|-------|--------|--------|
+| `employers` | GROUP3 | R | R |
+| `career_jobs` | GROUP3 | R | R |
+| `career_matches` | GROUP3 | — | R |
+| `career_applications` | GROUP3 | — | — |
+| `career_events` | GROUP3 | — | — |
+| `recommendation_feedback` | GROUP3 | — | — |
+| `student_employments` | GROUP3 | — | R |
+| `employment_reviews` | GROUP3 | — | — |
+| `study_abroad_records` | GROUP3 | — | R |
+| `graduate_administration` | GROUP3 | — | — |
+| `candidate_pushes` | GROUP3 | — | — |
+| `student_data_authorizations` | GROUP3 | — | — |
 
 ---
 
-## 跨模块调用规则
+## 跨组写入规则
 
-### 允许的调用方式
-
-```
-Module A → Module B Service (read)
-Module A → Module B Service (write through explicit API)
-```
-
-### 禁止的调用方式
-
-```
-❌ Module A 直接操作 Module B 的数据库表
-❌ Module A 直接导入 Module B 的 Model
-❌ Module A 直接调用 Module B 的 Repository
-```
-
-### 示例
+各组只能通过 Owner 的 Service 写入他人的数据：
 
 ```python
-# ✅ 正确：career模块通过users服务获取学生信息
-from app.modules.users.service import UserService
+# ✅ 正确：Group3 通过 Group2 Service 读取画像
+from app.modules.growth.service import PortraitService
+portrait = await PortraitService(db).get_portrait(user_id)
 
-student = await UserService(db).get_public_profile(user_id)
+# ❌ 错误：Group3 直接查询 Group2 的数据
+from app.modules.growth.model import StudentPortrait
+portrait = await db.get(StudentPortrait, user_id)
 
-# ❌ 错误：career模块直接查询student_profiles
-from app.modules.users.model import StudentProfile
-stmt = select(StudentProfile).where(...)
+# ✅ 正确：Group3 通过 Shared 写入审计日志
+from app.modules.admin.service import AuditService
+await AuditService(db).log(action="career.match_calculated", ...)
 ```
 
 ---
 
 ## 文件目录所有权
 
-### Group1 — 平台基础 & 用户成长
-
 ```
-backend/app/modules/auth/       → Group1
-backend/app/modules/users/      → Group1
-backend/app/modules/reference/  → Group1
-backend/app/modules/organization/ → Group1
-backend/app/modules/admission/  → Group1
-backend/app/modules/evidence/   → Group1
-backend/app/modules/growth/     → Group1
-backend/app/modules/admin/      → Group1
-backend/app/modules/files/      → Group1
-backend/app/modules/imports/    → Group1
-backend/app/core/               → Group1 (公共基础设施)
-backend/app/db/                 → Group1 (公共基础设施)
+backend/app/core/                  → SHARED (所有组可提PR，需 Review)
+backend/app/db/                    → SHARED
+backend/app/main.py                → SHARED
+backend/alembic/                   → SHARED
+
+backend/app/modules/auth/          → SHARED
+backend/app/modules/users/         → SHARED
+backend/app/modules/reference/     → SHARED
+backend/app/modules/organization/  → SHARED
+backend/app/modules/admission/     → SHARED
+backend/app/modules/admin/         → SHARED
+backend/app/modules/files/         → SHARED
+backend/app/modules/imports/       → SHARED
+
+backend/app/modules/resume/        → GROUP1
+backend/app/modules/interview/     → GROUP1
+backend/app/integrations/llm/      → GROUP1
+backend/app/integrations/asr/      → GROUP1
+backend/app/integrations/tts/      → GROUP1
+backend/app/integrations/ocr/      → GROUP1
+
+backend/app/modules/evidence/      → GROUP2
+backend/app/modules/growth/        → GROUP2
+
+backend/app/modules/employment/    → GROUP3
+backend/app/modules/career/        → GROUP3
+
+backend/scripts/                   → SHARED
+backend/app/tests/                 → SHARED (各组在各自目录下)
+docs/                              → SHARED
+.github/                           → SHARED
+
+app/page.tsx                       → SHARED
+app/account/                       → SHARED
+app/admin/                         → SHARED
+app/teacher/                       → SHARED
+app/resources/                     → SHARED
+app/dashboard/                     → GROUP2
+app/growth-map/                    → GROUP2
+app/portrait/                      → GROUP2
+app/ai/                            → GROUP2
+app/interview/                     → GROUP1
+app/career/                        → GROUP3
 ```
-
-### Group2 — 就业 & 职业
-
-```
-backend/app/modules/employment/ → Group2
-backend/app/modules/career/     → Group2
-```
-
-### Group3 — AI & 面试
-
-```
-backend/app/modules/interview/  → Group3
-backend/app/modules/resume/     → Group3
-backend/app/integrations/llm/   → Group3
-backend/app/integrations/asr/   → Group3
-backend/app/integrations/tts/   → Group3
-backend/app/integrations/ocr/   → Group3
-```
-
-### 公共 (Shared)
-
-```
-backend/app/core/               → 所有组 (需 Review)
-backend/app/db/                 → 所有组 (需 Review)
-backend/app/main.py             → 所有组 (需 Review)
-docs/                           → 所有组
-```
-
----
-
-## 修改公共文件流程
-
-任何对公共文件 (`core/`, `db/`, `main.py`) 的修改必须:
-
-1. 在 PR 中明确说明修改理由
-2. 至少获得一个其他组成员的 Review
-3. 不破坏现有 API 契约
-4. 通过全部测试
-
-## 新增表/字段流程
-
-1. 在所属模块的 `model.py` 中添加
-2. 创建 Alembic Migration (`alembic revision --autogenerate -m "description"`)
-3. 更新本文件 (MODULE-BOUNDARIES.md)
-4. 更新 DATABASE-DESIGN.md 中的 ER 图
-5. 在 PR 中说明新增原因

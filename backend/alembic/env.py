@@ -25,8 +25,16 @@ from app.modules.users.model import User, StudentProfile, StudentPrivateProfile,
 from app.modules.admission.model import StudentAdmission, StudentAdmissionScore
 from app.modules.employment.model import Employer, StudentEmployment, EmploymentReview, StudyAbroadRecord, GraduateAdministration
 from app.modules.evidence.model import Evidence, EvidenceReview, EvidenceFile
-from app.modules.growth.model import GrowthTask, CloudState
-from app.modules.career.model import CareerJob, CareerMatch, CareerApplication, CareerEvent, RecommendationFeedback
+from app.modules.growth.model import (
+    GrowthTask, CloudState,
+    BaselineAssessment, StudentPortrait, GrowthPlan, GrowthTaskProgress,
+    RoleModel, RoleModelExperience, RoleModelMilestone, RoleModelMatch,
+)
+from app.modules.career.model import (
+    CareerJob, CareerMatch, CareerApplication, CareerEvent, RecommendationFeedback,
+    CandidatePush, StudentDataAuthorization,
+)
+from app.modules.resume.model import GeneratedResume, ResumeTemplate
 from app.modules.interview.model import InterviewSession, ResumeUploadChunk
 from app.modules.admin.model import AuditLog, RecoveryRequest, DeletionRequest
 from app.modules.files.model import File

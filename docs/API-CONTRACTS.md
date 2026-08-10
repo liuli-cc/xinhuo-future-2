@@ -1,228 +1,186 @@
-# 薪火未来 — API 契约文档
+# 薪火未来 — API 契约文档 (v2.0 修正版)
 
 ## 基础信息
 
 - **Base URL**: `/api/v1`
 - **Content-Type**: `application/json; charset=utf-8`
-- **认证方式**: Bearer Token (`Authorization: Bearer <token>`) 或 HttpOnly Cookie (`xinhuo_session`)
-- **CORS**: 支持 `http://localhost:3000` 和配置的 `WEB_ORIGIN`
-
-## 通用响应格式
-
-### 成功
-```json
-{
-  "user": { ... }
-}
-```
-或
-```json
-{
-  "data": [...],
-  "total": 100
-}
-```
-
-### 错误
-```json
-{
-  "success": false,
-  "data": null,
-  "message": "错误描述",
-  "error_code": "unauthorized",
-  "request_id": "..."
-}
-```
-
-**注意**: 第一阶段保持与旧前端兼容的响应格式。未来可统一为 `{success, data, message, error_code}` 标准格式。
-
-## 公共ID体系
-
-所有模块必须引用统一ID:
-
-| ID | 说明 | 类型 |
-|----|------|------|
-| `user_id` | 用户账号ID | int |
-| `student_id` | 学生档案ID (student_profiles.id) | int |
-| `teacher_id` | 教师档案ID (teacher_profiles.id) | int |
-| `college_id` | 学院ID | int |
-| `major_standard_id` | 标准专业ID (ref_major_standard.id) | int |
-| `major_program_id` | 学校专业ID (university_major_programs.id) | int |
-| `job_standard_id` | 标准岗位ID (ref_job_standard.id) | int |
-| `employment_id` | 就业记录ID | int |
-| `evidence_id` | 证据ID | int |
-| `file_id` | 文件ID | string (UUID) |
+- **认证**: Bearer Token 或 HttpOnly Cookie (`xinhuo_session`)
 
 ---
 
-## Phase 1 API 清单 (已实现基础)
+## 公共 ID 体系
+
+所有模块必须使用统一 ID，禁止各组自建独立的 Student/Candidate/UserProfile 等概念:
+
+| ID | 类型 | Owner | 说明 |
+|----|------|-------|------|
+| `user_id` | int | SHARED | 用户账号 ID |
+| `student_id` / `student_profile_id` | int | SHARED | 学生档案 ID |
+| `teacher_id` | int | SHARED | 教师档案 ID |
+| `college_id` | int | SHARED | 学院 ID |
+| `major_standard_id` | int | SHARED | 标准专业 ID |
+| `major_program_id` | int | SHARED | 学校专业 ID |
+| `job_standard_id` | int | SHARED | 标准岗位 ID |
+| `evidence_id` | int | GROUP2 | 证据 ID |
+| `portrait_id` | int | GROUP2 | 画像 ID |
+| `resume_id` | str | GROUP1 | 简历 ID |
+| `interview_session_id` | str | GROUP1 | 面试记录 ID |
+| `career_job_id` | str | GROUP3 | 岗位快照 ID |
+| `match_id` | str | GROUP3 | 匹配结果 ID |
+| `file_id` | str | SHARED | 文件 ID |
+
+---
+
+## Shared/Core API (Phase 1 已实现)
 
 ### Auth
 
-| Method | Path | Status | Owner | Description |
-|--------|------|--------|-------|-------------|
-| GET | `/api/v1/auth/me` | READY | Group1 | 当前用户信息 |
-| POST | `/api/v1/auth/login` | READY | Group1 | 登录 |
-| POST | `/api/v1/auth/logout` | READY | Group1 | 登出 |
-| POST | `/api/v1/auth/register` | READY | Group1 | 注册 |
-
-**请求示例**:
-```
-POST /api/v1/auth/login
-{
-  "studentId": "20251106001",
-  "password": "Password123"
-}
-
-Response 200:
-{
-  "user": { "id": 1, "studentId": "20251106001", "name": "张三", ... },
-  "sessionToken": "abc123..."
-}
-```
+| Method | Path | Owner |
+|--------|------|-------|
+| GET | `/api/v1/auth/me` | SHARED |
+| POST | `/api/v1/auth/login` | SHARED |
+| POST | `/api/v1/auth/logout` | SHARED |
+| POST | `/api/v1/auth/register` | SHARED |
 
 ### Users
 
-| Method | Path | Status | Owner | Description |
-|--------|------|--------|-------|-------------|
-| GET | `/api/v1/users/{id}` | READY | Group1 | 用户公开信息 |
-| PATCH | `/api/v1/users/{id}` | READY | Group1 | 更新个人资料 |
+| Method | Path | Owner |
+|--------|------|-------|
+| GET | `/api/v1/users/{id}` | SHARED |
+| PATCH | `/api/v1/users/{id}` | SHARED |
 
-### Reference (标准字典)
+### Reference
 
-| Method | Path | Status | Owner | Description |
-|--------|------|--------|-------|-------------|
-| GET | `/api/v1/reference/majors` | READY | Group1 | 标准专业列表 (支持筛选) |
-| GET | `/api/v1/reference/majors/disciplines` | READY | Group1 | 学科门类列表 |
-| GET | `/api/v1/reference/majors/{id}` | READY | Group1 | 单个标准专业 |
-| GET | `/api/v1/reference/jobs` | READY | Group1 | 标准岗位列表 |
-| GET | `/api/v1/reference/jobs/domains` | READY | Group1 | 岗位大类列表 |
-| GET | `/api/v1/reference/jobs/{id}` | READY | Group1 | 单个标准岗位 |
-| GET | `/api/v1/reference/codes/{namespace}` | READY | Group1 | 代码值列表 |
+| Method | Path | Owner |
+|--------|------|-------|
+| GET | `/api/v1/reference/majors` | SHARED |
+| GET | `/api/v1/reference/jobs` | SHARED |
+| GET | `/api/v1/reference/codes/{ns}` | SHARED |
 
-### Organization (学校组织)
+### Organization
 
-| Method | Path | Status | Owner | Description |
-|--------|------|--------|-------|-------------|
-| GET | `/api/v1/organization/universities` | READY | Group1 | 大学列表 |
-| GET | `/api/v1/organization/colleges` | READY | Group1 | 学院列表 |
-| GET | `/api/v1/organization/colleges/{id}` | READY | Group1 | 单个学院 |
-| GET | `/api/v1/organization/majors` | READY | Group1 | 学校专业列表 |
-| GET | `/api/v1/organization/majors/{id}` | READY | Group1 | 单个学校专业 |
+| Method | Path | Owner |
+|--------|------|-------|
+| GET | `/api/v1/organization/colleges` | SHARED |
+| GET | `/api/v1/organization/majors` | SHARED |
 
-### Files (文件)
+### Files
 
-| Method | Path | Status | Owner | Description |
-|--------|------|--------|-------|-------------|
-| POST | `/api/v1/files/upload` | READY | Group1 | 文件上传 |
-| GET | `/api/v1/files/{id}` | READY | Group1 | 文件元数据 |
+| Method | Path | Owner |
+|--------|------|-------|
+| POST | `/api/v1/files/upload` | SHARED |
+| GET | `/api/v1/files/{id}` | SHARED |
 
-### Imports (数据导入)
+### Imports
 
-| Method | Path | Status | Owner | Description |
-|--------|------|--------|-------|-------------|
-| GET | `/api/v1/imports/batches` | READY | Group1 | 导入批次列表 |
-| GET | `/api/v1/imports/batches/{id}` | READY | Group1 | 导入批次详情 |
-| GET | `/api/v1/imports/batches/{id}/rows` | READY | Group1 | 批次数据行 |
+| Method | Path | Owner |
+|--------|------|-------|
+| GET | `/api/v1/imports/batches` | SHARED |
+| GET | `/api/v1/imports/batches/{id}` | SHARED |
 
 ### System
 
-| Method | Path | Status | Owner | Description |
-|--------|------|--------|-------|-------------|
-| GET | `/health` | READY | Group1 | 健康检查 |
-| GET | `/api/health` | READY | Group1 | 健康检查 (兼容旧路径) |
+| Method | Path | Owner |
+|--------|------|-------|
+| GET | `/health` | SHARED |
 
 ---
 
-## Phase 2 API (尚未实现 — 待后续迁移)
+## Phase 2 API — Group2 (任务匹配 + 榜样激励)
 
-这些API已在旧CloudBase后端存在，需要在第二阶段逐步迁移:
+迁移自旧 CloudBase 后端 + 新增功能:
 
-### Growth & Evidence (Group1)
+| Method | Path | Status | 对应旧API |
+|--------|------|--------|-----------|
+| GET/POST | `/api/v1/growth/tasks` | DESIGNED | `/api/growth-path` |
+| GET/POST | `/api/v1/growth/evidence` | DESIGNED | `/api/growth-path/evidence` |
+| GET/POST/DELETE | `/api/v1/growth/portrait` | DESIGNED | `/api/portrait` |
+| GET/PUT/DELETE | `/api/v1/growth/cloud-state` | DESIGNED | `/api/cloud-state` |
+| GET/PATCH | `/api/v1/growth/admin/evidence` | DESIGNED | `/api/admin/evidence` |
+| GET/POST | `/api/v1/growth/decision` | DESIGNED | `/api/decision` |
+| GET/POST | `/api/v1/growth/assessments` | NEW | — |
+| GET | `/api/v1/growth/assessments/{id}` | NEW | — |
+| GET | `/api/v1/growth/portrait/{user_id}` | NEW | — |
+| GET | `/api/v1/growth/role-models` | NEW | — |
+| GET | `/api/v1/growth/role-models/{id}` | NEW | — |
+| POST | `/api/v1/growth/role-models/match` | NEW | — |
 
-| Method | Path | Old Handler | Status |
-|--------|------|-------------|--------|
-| GET/POST | `/api/growth-path` | handleGrowthPath | LEGACY |
-| POST | `/api/growth-path/evidence` | handleGrowthEvidence | LEGACY |
-| POST | `/api/evidence-files` | handleEvidenceFiles | LEGACY |
-| GET/POST/DELETE | `/api/portrait` | handlePortrait | LEGACY |
-| GET/PUT/DELETE | `/api/cloud-state` | handleCloudState | LEGACY |
+## Phase 2 API — Group1 (AI简历 + AI模拟面试)
 
-### Account Management (Group1)
+| Method | Path | Status | 对应旧API |
+|--------|------|--------|-----------|
+| GET/POST | `/api/v1/interview/sessions` | DESIGNED | `/api/interview` |
+| POST | `/api/v1/interview/model` | DESIGNED | `/api/interview/model` |
+| POST | `/api/v1/interview/resume/parse` | DESIGNED | `/api/interview/resume/parse` |
+| POST | `/api/v1/interview/resume/chunk` | DESIGNED | `/api/interview/resume/chunk` |
+| POST | `/api/v1/interview/job/parse` | DESIGNED | `/api/interview/job/parse` |
+| POST | `/api/v1/interview/plan` | DESIGNED | `/api/interview/plan` |
+| POST | `/api/v1/interview/asr` | DESIGNED | `/api/interview/asr` |
+| POST | `/api/v1/interview/tts` | DESIGNED | `/api/interview/tts` |
+| POST | `/api/v1/interview/speech-metrics` | DESIGNED | `/api/interview/speech-metrics` |
+| GET/POST | `/api/v1/resumes` | NEW | — |
+| GET | `/api/v1/resumes/{id}` | NEW | — |
+| POST | `/api/v1/resumes/{id}/generate` | NEW | — |
+| GET | `/api/v1/resumes/templates` | NEW | — |
 
-| Method | Path | Old Handler | Status |
-|--------|------|-------------|--------|
-| PATCH | `/api/account` | handleAccount | LEGACY |
-| GET | `/api/account/export` | handleAccountExport | LEGACY |
-| GET/DELETE | `/api/account/sessions` | handleAccountSessions | LEGACY |
-| GET/POST/DELETE | `/api/account/deletion` | handleAccountDeletion | LEGACY |
+## Phase 2 API — Group3 (智能岗位匹配)
 
-### Career (Group2)
-
-| Method | Path | Old Handler | Status |
-|--------|------|-------------|--------|
-| GET/POST | `/api/career/jobs` | handleCareerJobs | LEGACY |
-| POST | `/api/career/jobs/parse` | handleCareerParse | LEGACY |
-| POST | `/api/career/jobs/:id/match` | handleCareerJobAction | LEGACY |
-| POST | `/api/career/jobs/:id/gap-tasks` | handleCareerJobAction | LEGACY |
-| GET/POST | `/api/career/applications` | handleCareerApplications | LEGACY |
-| POST | `/api/career/applications/:id/events` | handleCareerEvent | LEGACY |
-
-### Decision / AI (Group3)
-
-| Method | Path | Old Handler | Status |
-|--------|------|-------------|--------|
-| GET/POST | `/api/decision` | handleDecision | LEGACY |
-
-### Interview (Group3)
-
-| Method | Path | Old Handler | Status |
-|--------|------|-------------|--------|
-| GET/POST | `/api/interview` | handleInterview | LEGACY |
-| POST | `/api/interview/model` | handleInterviewModel | LEGACY |
-| POST | `/api/interview/resume/chunk` | handleResumeChunk | LEGACY |
-| POST | `/api/interview/resume/parse` | handleResumeParse | LEGACY |
-| POST | `/api/interview/resume/parse-text` | handleResumeTextParse | LEGACY |
-| POST | `/api/interview/job/parse` | handleJobParse | LEGACY |
-| POST | `/api/interview/plan` | handleInterviewPlan | LEGACY |
-| POST | `/api/interview/asr` | handleAsr | LEGACY |
-| POST | `/api/interview/tts` | handleTts | LEGACY |
-| POST | `/api/interview/speech-metrics` | handleSpeechMetrics | LEGACY |
-| GET | `/api/interview/speech/status` | handleSpeechStatus | LEGACY |
-
-### Admin (Group1)
-
-| Method | Path | Old Handler | Status |
-|--------|------|-------------|--------|
-| GET/PATCH | `/api/management/accounts` | handleManagementAccounts | LEGACY |
-| GET/PATCH | `/api/admin/evidence` | handleAdminEvidence | LEGACY |
-| GET | `/api/admin/overview` | handleAdminOverview | LEGACY |
-| GET | `/api/admin/audit` | handleAdminAudit | LEGACY |
-| GET/POST | `/api/admin/staff` | handleAdminStaff | LEGACY |
-| GET/POST | `/api/admin/deletions` | handleAdminDeletions | LEGACY |
-| GET/POST | `/api/admin/recovery` | handleAdminRecovery | LEGACY |
-
-### Resources
-
-| Method | Path | Old Handler | Status |
-|--------|------|-------------|--------|
-| GET | `/api/mentors` | handleMentors | LEGACY |
+| Method | Path | Status | 对应旧API |
+|--------|------|--------|-----------|
+| GET/POST | `/api/v1/career/jobs` | DESIGNED | `/api/career/jobs` |
+| POST | `/api/v1/career/jobs/parse` | DESIGNED | `/api/career/jobs/parse` |
+| POST | `/api/v1/career/jobs/{id}/match` | DESIGNED | `/api/career/jobs/:id/match` |
+| POST | `/api/v1/career/jobs/{id}/gap-tasks` | DESIGNED | `/api/career/jobs/:id/gap-tasks` |
+| GET/POST | `/api/v1/career/applications` | DESIGNED | `/api/career/applications` |
+| POST | `/api/v1/career/applications/{id}/events` | DESIGNED | `/api/career/applications/:id/events` |
+| GET/POST | `/api/v1/career/employers` | NEW | — |
+| GET | `/api/v1/career/employers/{id}` | NEW | — |
+| POST | `/api/v1/career/candidate-pushes` | NEW | — |
+| GET | `/api/v1/career/candidate-pushes/{id}` | NEW | — |
+| POST | `/api/v1/career/authorizations` | NEW | — |
 
 ---
 
-## API 命名约定
+## 跨组数据 DTO
 
-### 路径命名
-- 资源名使用复数或不可数名词
-- 层级关系: `/resource/{id}/sub-resource`
-- 版本: `/api/v1/`
+在 `backend/app/schemas/` 下建立公共 DTO:
 
-### 查询参数
-- 分页: `?limit=100&offset=0`
-- 筛选: `?discipline=工学&search=计算机`
-- 排序: 后续按需添加
+```python
+# backend/app/schemas/student.py
+class StudentSummary(BaseModel):   # Shared → All
+    user_id: int
+    student_no: str
+    name: str
+    college: str
+    major: str
+    grade: str
 
-### 请求/响应
-- JSON body
-- 字段使用 camelCase（兼容现有前端）
-- 数据库字段使用 snake_case
+# backend/app/schemas/portrait.py
+class StudentPortraitSummary(BaseModel):  # Group2 → Group1, Group3
+    user_id: int
+    dimensions: dict  # {专业学习: 85, 项目实践: 72, ...}
+    overall_score: int
+    confidence: int
+
+# backend/app/schemas/job.py
+class TargetJob(BaseModel):  # Group3 → Group1, Group2
+    job_id: str
+    title: str
+    company: str
+    description: str
+    requirements: list
+
+# backend/app/schemas/resume.py
+class ResumeSummary(BaseModel):  # Group1 → Group3
+    resume_id: str
+    title: str
+    version: int
+    target_job_id: str
+
+# backend/app/schemas/interview.py
+class InterviewAssessmentSummary(BaseModel):  # Group1 → Group3
+    session_id: str
+    overall_score: int
+    weaknesses: list
+    strengths: list
+```
