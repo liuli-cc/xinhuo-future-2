@@ -46,3 +46,21 @@ next-env.d.ts
 /outputs/
 /work/
 /*.tar.gz
+
+# python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+backend/.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
