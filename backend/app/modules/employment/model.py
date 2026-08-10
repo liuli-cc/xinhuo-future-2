@@ -10,7 +10,7 @@ multiple related entities.
 
 from __future__ import annotations
 
-from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, String, Text, func
+from sqlalchemy import JSON, DateTime, ForeignKey, Integer, Numeric, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ...db.base import Base, TimestampMixin
