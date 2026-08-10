@@ -1,0 +1,94 @@
+# 薪火未来 — Code Owners
+
+# ============================================================
+# 填写说明:
+# 将下面的占位符替换为实际的 GitHub 用户名。
+# 每个路径可以指定一个或多个 owner。
+# 最后的 * 匹配所有未被其他规则覆盖的文件。
+# ============================================================
+
+# ── 公共基础设施 (需多组 Review) ──────────────────────────
+# 修改以下文件需要至少一个其他组 Review
+backend/app/core/              @xinhuo-team/group1 @xinhuo-team/group2 @xinhuo-team/group3
+backend/app/db/                @xinhuo-team/group1 @xinhuo-team/group2 @xinhuo-team/group3
+backend/app/main.py            @xinhuo-team/group1 @xinhuo-team/group2 @xinhuo-team/group3
+backend/alembic/               @xinhuo-team/group1 @xinhuo-team/group2 @xinhuo-team/group3
+backend/docker-compose.yml     @xinhuo-team/group1
+docs/                          @xinhuo-team/group1 @xinhuo-team/group2 @xinhuo-team/group3
+
+# ── Group1 — 平台基础 & 学生成长 ──────────────────────────
+backend/app/modules/auth/       @xinhuo-team/group1
+backend/app/modules/users/      @xinhuo-team/group1
+backend/app/modules/reference/  @xinhuo-team/group1
+backend/app/modules/organization/ @xinhuo-team/group1
+backend/app/modules/admission/  @xinhuo-team/group1
+backend/app/modules/evidence/   @xinhuo-team/group1
+backend/app/modules/growth/     @xinhuo-team/group1
+backend/app/modules/admin/      @xinhuo-team/group1
+backend/app/modules/files/      @xinhuo-team/group1
+backend/app/modules/imports/    @xinhuo-team/group1
+backend/scripts/                @xinhuo-team/group1
+backend/app/tests/              @xinhuo-team/group1
+
+# Group1 — 前端页面
+app/page.tsx                    @xinhuo-team/group1
+app/dashboard/                  @xinhuo-team/group1
+app/growth-map/                 @xinhuo-team/group1
+app/portrait/                   @xinhuo-team/group1
+app/account/                    @xinhuo-team/group1
+app/admin/                      @xinhuo-team/group1
+app/teacher/                    @xinhuo-team/group1
+app/resources/                  @xinhuo-team/group1
+app/components/PortalFrame.tsx  @xinhuo-team/group1
+app/components/AccountManagementPanel.tsx @xinhuo-team/group1
+lib/auth.ts                     @xinhuo-team/group1
+lib/bmob-api.ts                 @xinhuo-team/group1
+lib/cloud-state-client.ts       @xinhuo-team/group1
+
+# ── Group2 — 就业 & 职业发展 ──────────────────────────────
+backend/app/modules/employment/ @xinhuo-team/group2
+backend/app/modules/career/     @xinhuo-team/group2
+
+# Group2 — 前端页面
+app/career/                     @xinhuo-team/group2
+app/components/CareerWorkbench.tsx @xinhuo-team/group2
+app/components/CareerJobDiscovery.tsx @xinhuo-team/group2
+lib/career-engine.ts            @xinhuo-team/group2
+lib/decision-engine.ts          @xinhuo-team/group2
+lib/job-parser.ts               @xinhuo-team/group2
+lib/job-import-parser.ts        @xinhuo-team/group2
+
+# ── Group3 — AI & 智能面试 ────────────────────────────────
+backend/app/modules/interview/  @xinhuo-team/group3
+backend/app/modules/resume/     @xinhuo-team/group3
+backend/app/integrations/llm/   @xinhuo-team/group3
+backend/app/integrations/asr/   @xinhuo-team/group3
+backend/app/integrations/tts/   @xinhuo-team/group3
+backend/app/integrations/ocr/   @xinhuo-team/group3
+
+# Group3 — 前端页面
+app/interview/                  @xinhuo-team/group3
+app/ai/                         @xinhuo-team/group3
+app/components/VirtualInterviewer.tsx @xinhuo-team/group3
+app/components/ContinuousSpeechRecognition.tsx @xinhuo-team/group3
+app/components/ResumeUploader.tsx @xinhuo-team/group3
+lib/interview-engine.ts         @xinhuo-team/group3
+lib/interview-model.ts          @xinhuo-team/group3
+lib/interview-plan.ts           @xinhuo-team/group3
+lib/interview-report-download.ts @xinhuo-team/group3
+lib/interview-report-export.ts  @xinhuo-team/group3
+lib/scoring-v2.ts               @xinhuo-team/group3
+lib/speech-analysis.ts          @xinhuo-team/group3
+lib/wav-audio.ts                @xinhuo-team/group3
+lib/resume-parser.ts            @xinhuo-team/group3
+lib/resume-upload.ts            @xinhuo-team/group3
+lib/client-resume-ocr.ts        @xinhuo-team/group3
+
+# ── 旧后端 (保持可运行，一般不修改) ──────────────────────
+functions/                      @xinhuo-team/group1
+
+# ── 项目配置 ──────────────────────────────────────────────
+.github/                        @xinhuo-team/group1
+package.json                    @xinhuo-team/group1 @xinhuo-team/group2 @xinhuo-team/group3
+tsconfig.json                   @xinhuo-team/group1
+next.config.ts                  @xinhuo-team/group1

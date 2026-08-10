@@ -1,0 +1,13 @@
+{
+  "version": "2.0",
+  "envId": "xinhuo-d8gxyksn2f7095c5a",
+  "$schema": "https://framework-1258016615.tcloudbaseapp.com/schema/latest.json",
+  "app": {
+    "serviceName": "xinhuo-v18",
+    "framework": "static",
+    "installCommand": "",
+    "buildCommand": "",
+    "outputDir": "./out",
+    "deployPath": "/"
+  }
+}
