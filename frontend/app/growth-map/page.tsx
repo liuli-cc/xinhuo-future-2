@@ -1,11 +1,13 @@
 "use client";
 
-import { apiFetch } from "../../lib/bmob-api";
+import { apiFetch } from "@/modules/shared/api/bmob-api";
 
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import PortalFrame, { useStudentProfile } from "../components/PortalFrame";
-import { ABILITY_DIMENSIONS, SOURCE_META, type AbilityDimension, type EvidenceSource } from "../../lib/growth-engine";
+import PortalFrame, { useStudentProfile } from "@/modules/shared/components/PortalFrame";
+import { AnimatedDonutChart, AnimatedLineChart } from "@/modules/shared/components/DataViz";
+import FourYearJourney from "@/modules/group-2-growth/components/FourYearJourney";
+import { ABILITY_DIMENSIONS, SOURCE_META, type AbilityDimension, type EvidenceSource } from "@/modules/group-2-growth/client/growth-engine";
 
 type Task = {
   id: string;
@@ -258,6 +260,12 @@ export default function GrowthMap() {
   const completed = tasks.filter(task => stateByTask.get(task.id)?.evidenceStatus === "verified").length;
   const pending = tasks.filter(task => stateByTask.get(task.id)?.evidenceStatus === "pending").length;
   const progress = tasks.length ? Math.round((completed / tasks.length) * 100) : 0;
+  const journeyData = semesters.map((item, index) => {
+    const semesterCustomTasks = customTasks.filter(task => task.id.startsWith(`custom-${index}-`));
+    const semesterTasks = [...item.tasks, ...semesterCustomTasks];
+    const verified = semesterTasks.filter(task => stateByTask.get(task.id)?.evidenceStatus === "verified").length;
+    return { label: semesterLabels[index], theme: item.theme, progress: semesterTasks.length ? Math.round(verified / semesterTasks.length * 100) : 0 };
+  });
 
   const notify = (message: string) => {
     setToast(message);
@@ -377,6 +385,8 @@ export default function GrowthMap() {
       subtitle="根据你保存的年级和专业生成，不使用固定示例学生信息。"
       actions={<button className="ghost-action" onClick={() => { setSelectedSemester(null); setSelectedPhase(null); }}>回到当前学期</button>}
     >
+      <FourYearJourney semesters={journeyData} currentIndex={currentSemester} selectedIndex={semesterIndex} onSelect={chooseSemester} />
+
       <section className="gm2-profile portal-card">
         <div className="gm2-avatar">{(profile.name || "同").slice(0, 1)}</div>
         <div className="gm2-profile-copy">
@@ -405,15 +415,24 @@ export default function GrowthMap() {
         <article className="gm2-stat portal-card"><span>已核验任务</span><strong>{completed}<small> / {tasks.length}</small></strong><p>{pending ? `${pending} 项佐证正在等待管理员审核` : "只有通过实际佐证核验才计入进度"}</p></article>
       </section>
 
-      <section className="gm2-section">
-        <div className="gm2-heading"><div><span>四年路线</span><h2>选择学期</h2></div><small>高亮标记为根据年级推算的当前学期</small></div>
-        <div className="gm2-tabs" role="tablist" aria-label="选择学期">
-          {semesters.map((item, index) => (
-            <button key={item.label} role="tab" aria-selected={semesterIndex === index} className={`${semesterIndex === index ? "active" : ""} ${currentSemester === index ? "current" : ""}`} onClick={() => chooseSemester(index)}>
-              <span>{index + 1}</span><b>{semesterLabels[index]}</b>{currentSemester === index && <small>当前</small>}
-            </button>
-          ))}
-        </div>
+      <section className="gm2-viz-row">
+        <AnimatedLineChart
+          title="八学期核验进度"
+          description="折线连接四年路线中的真实任务完成比例。"
+          max={100}
+          unit="%"
+          data={journeyData.map(item => ({ label: item.label, value: item.progress, detail: item.theme }))}
+        />
+        <AnimatedDonutChart
+          title={`${semesterLabels[semesterIndex]}任务状态`}
+          description="提交佐证后进入审核，核验通过才计入完成。"
+          centerLabel="当前任务"
+          data={[
+            { label: "已核验", value: completed, detail: "已进入成长进度", color: "var(--chart-blue-2)" },
+            { label: "审核中", value: pending, detail: "等待管理员核验", color: "var(--chart-blue-5)" },
+            { label: "待佐证", value: Math.max(0, tasks.length - completed - pending), detail: "尚未提交有效佐证", color: "var(--chart-neutral)" },
+          ]}
+        />
       </section>
 
       <section className="gm2-section">

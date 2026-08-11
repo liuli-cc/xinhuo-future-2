@@ -11,12 +11,13 @@
     "build": "next build",
     "start": "next start",
     "test:unit": "node --experimental-strip-types --test tests/*.test.ts tests/*.test.mjs",
-    "test": "npm run build && npm run test:unit && node --test tests/rendered-html.test.mjs",
+    "test": "npm run build -- --webpack && npm run test:unit && node --test tests/rendered-html.test.mjs",
     "lint": "eslint . --ignore-pattern .next --ignore-pattern dist",
     "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",
+    "@phosphor-icons/react": "^2.1.10",
     "@tesseract.js-data/chi_sim": "^1.0.0",
     "@tesseract.js-data/eng": "^1.0.0",
     "@types/pg": "^8.20.0",

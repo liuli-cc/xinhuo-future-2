@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { analyzeVoiceFrames, type VoiceCaptureStats, type VoiceFrame } from "../../lib/wav-audio";
+import { analyzeVoiceFrames, type VoiceCaptureStats, type VoiceFrame } from "@/modules/group-1-interview/client/wav-audio";
 
 type RecognitionAlternative = {
   transcript: string;

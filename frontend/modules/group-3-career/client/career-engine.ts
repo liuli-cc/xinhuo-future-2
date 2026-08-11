@@ -1,5 +1,5 @@
-import { CAREER_PROFILES } from "./decision-engine.ts";
-import { ABILITY_DIMENSIONS, calculatePortrait, type AbilityDimension, type EvidenceRecord, type PortraitResult } from "./growth-engine.ts";
+import { CAREER_PROFILES } from "../../group-2-growth/client/decision-engine.ts";
+import { ABILITY_DIMENSIONS, calculatePortrait, type AbilityDimension, type EvidenceRecord, type PortraitResult } from "../../group-2-growth/client/growth-engine.ts";
 
 export const CAREER_MATCH_ENGINE_VERSION = "XH-JFM-1.0";
 

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildCareerGapTasks, buildCareerMatch, deriveCareerRequirements } from "../lib/career-engine.ts";
-import type { EvidenceRecord } from "../lib/growth-engine.ts";
+import { buildCareerGapTasks, buildCareerMatch, deriveCareerRequirements } from "../modules/group-3-career/client/career-engine.ts";
+import type { EvidenceRecord } from "../modules/group-2-growth/client/growth-engine.ts";
 
 function evidence(overrides: Partial<EvidenceRecord>): EvidenceRecord {
   return {

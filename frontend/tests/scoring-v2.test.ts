@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { scoreAnswerV2, generateReportV2 } from "../lib/scoring-v2.ts";
-import { defaultSpeechMetrics } from "../lib/speech-analysis.ts";
+import { scoreAnswerV2, generateReportV2 } from "../modules/group-1-interview/client/scoring-v2.ts";
+import { defaultSpeechMetrics } from "../modules/group-1-interview/client/speech-analysis.ts";
 
 test("评分算法：STAR完整 + 量化 = 更高分", () => {
   const weak = scoreAnswerV2("介绍项目", "我参加了一个项目。", 15, [], null);

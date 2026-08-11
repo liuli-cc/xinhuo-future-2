@@ -1,10 +1,11 @@
 "use client";
 
-import { apiFetch } from "../../lib/bmob-api";
+import { apiFetch } from "@/modules/shared/api/bmob-api";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import PortalFrame from "./PortalFrame";
+import PortalFrame from "@/modules/shared/components/PortalFrame";
+import { AnimatedBarChart, AnimatedDonutChart } from "@/modules/shared/components/DataViz";
 import CareerJobDiscovery, { type JobImportDraft } from "./CareerJobDiscovery";
 
 type Requirement = { id: string; label: string; dimension: string; priority: "required" | "preferred"; keywords: string[] };
@@ -38,6 +39,15 @@ type Job = {
 
 const statusLabels: Record<ApplicationStatus, string> = {
   saved: "待投递", applied: "已投递", written_test: "笔试/测评", interview: "面试中", offer: "获得 Offer", rejected: "未通过", withdrawn: "已撤回",
+};
+const statusColors: Record<ApplicationStatus, string> = {
+  saved: "var(--chart-blue-6)",
+  applied: "var(--chart-blue-2)",
+  written_test: "var(--chart-blue-3)",
+  interview: "var(--chart-blue-4)",
+  offer: "var(--chart-blue-1)",
+  rejected: "var(--chart-blue-5)",
+  withdrawn: "var(--chart-neutral)",
 };
 const statusOrder: ApplicationStatus[] = ["saved", "applied", "written_test", "interview", "offer", "rejected", "withdrawn"];
 const blankJob = { title: "", company: "", city: "", employmentType: "实习", salary: "", sourceUrl: "", sourceName: "学生导入", description: "" };
@@ -191,6 +201,21 @@ export default function CareerWorkbench() {
       <article><span>已完成匹配</span><strong>{jobs.filter(job => job.match).length}</strong><small>算法版本 XH-JFM-1.0</small></article>
       <article><span>进行中投递</span><strong>{applications.filter(item => ["applied", "written_test", "interview"].includes(item.status)).length}</strong><small>结果会持续记录</small></article>
       <article><span>证据基数</span><strong>{verifiedEvidence || "—"}</strong><small>仅统计参与匹配的已核验证据</small></article>
+    </section>
+
+    <section className="career-viz-grid">
+      <AnimatedBarChart
+        title="岗位匹配得分"
+        description="只显示已完成确定性匹配的岗位，悬停查看可信度。"
+        max={100}
+        data={jobs.filter(job => job.match).slice(0, 6).map(job => ({ label: job.title, value: job.match?.overallScore ?? 0, detail: `${job.company}，可信度 ${job.match?.confidence ?? 0}%` }))}
+      />
+      <AnimatedDonutChart
+        title="投递阶段分布"
+        description="每次更新投递阶段与复盘后自动重绘。"
+        centerLabel="投递记录"
+        data={statusOrder.map(status => ({ label: statusLabels[status], value: counts[status], detail: `${statusLabels[status]}阶段的真实投递记录`, color: statusColors[status] }))}
+      />
     </section>
 
     <section className="career-workspace-tabs" aria-label="实习就业工作台分区">

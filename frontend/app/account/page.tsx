@@ -1,9 +1,10 @@
 "use client";
 
-import { apiFetch } from "../../lib/bmob-api";
+import { apiFetch } from "@/modules/shared/api/bmob-api";
 
 import { FormEvent, useEffect, useState } from "react";
-import PortalFrame, { useStudentProfile } from "../components/PortalFrame";
+import PortalFrame, { useStudentProfile } from "@/modules/shared/components/PortalFrame";
+import { AnimatedDonutChart } from "@/modules/shared/components/DataViz";
 
 type DeviceSession = { id: string; deviceName: string; createdAt: number; lastSeenAt: number; expiresAt: number; current: boolean };
 type DeletionRequest = { requestedAt: number; scheduledAt: number; cancelledAt: number | null; completedAt: number | null };
@@ -43,7 +44,7 @@ export default function AccountPage() {
       const response = await apiFetch("/api/account", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...form, action: "profile" }) });
       const body = await response.json() as { error?: string };
       if (!response.ok) throw new Error(body.error || "保存失败");
-      setMessage("个人与发展信息已保存到腾讯云");
+      setMessage("个人与发展信息已保存到平台后台");
     } catch (reason) { setError(reason instanceof Error ? reason.message : "保存失败"); }
     finally { setSaving(false); }
   };
@@ -99,11 +100,24 @@ export default function AccountPage() {
     setMessage("个人数据已导出");
   };
 
+  const profileFields = [form.name, form.email, form.phone, form.college, form.major, form.className, form.grade, form.bio, form.targetRole];
+  const profileCompleteness = Math.round(profileFields.filter(value => String(value ?? "").trim()).length / profileFields.length * 100);
+
   return <PortalFrame active="" eyebrow="ACCOUNT, SECURITY & PRIVACY" title="账号与隐私" subtitle="管理个人资料、发展目标、登录设备和属于你的云端数据。">
     {(required || profile.forcePasswordChange) && <div className="account-required"><b>首次登录需要修改临时密码</b><span>完成密码更新后，才能安全地继续使用管理功能。</span></div>}
     {(message || error) && <div className={`account-feedback ${error ? "error" : ""}`}>{error || message}</div>}
+    <section className="account-viz-grid">
+      <AnimatedDonutChart title="个人资料完整度" description="保存信息后，右上角头像与完整度会同步更新。" centerLabel="资料完整度" unit="%" data={[
+        { label: "已完善", value: profileCompleteness, detail: "已填写的个人与发展信息", color: "var(--chart-blue-2)" },
+        { label: "待完善", value: Math.max(0, 100 - profileCompleteness), detail: "仍可补充的信息", color: "var(--chart-neutral)" },
+      ]} />
+      <AnimatedDonutChart title="登录设备" description="设备退出或密码更新后，会话分布会重新渲染。" centerLabel="活跃会话" data={[
+        { label: "当前设备", value: sessions.filter(item => item.current).length, detail: "正在使用的当前会话", color: "var(--chart-blue-2)" },
+        { label: "其他设备", value: sessions.filter(item => !item.current).length, detail: "可以随时退出的其他会话", color: "var(--chart-blue-6)" },
+      ]} />
+    </section>
     <section className="account-grid">
-      <form className="portal-card account-card" onSubmit={saveProfile}>
+      <form id="profile" className="portal-card account-card" onSubmit={saveProfile}>
         <div className="account-head"><div><span>PERSONAL PROFILE</span><h2>个人与发展信息</h2></div><em>{roleLabels[profile.role] ?? "平台账号"}</em></div>
         <div className="account-form">
           <label><span>姓名</span><input value={form.name} onChange={event => update("name", event.target.value)} /></label>
@@ -121,7 +135,7 @@ export default function AccountPage() {
         </div>
         <button className="modal-submit" disabled={saving}>保存个人信息</button>
       </form>
-      <form className="portal-card account-card password-card" onSubmit={savePassword}>
+      <form id="security" className="portal-card account-card password-card" onSubmit={savePassword}>
         <div className="account-head"><div><span>SECURITY</span><h2>修改登录密码</h2></div></div>
         <p>密码只保存 PBKDF2 派生结果。连续 5 次登录失败后，账号会锁定 15 分钟。</p>
         <label><span>当前密码</span><input type="password" value={password.currentPassword} onChange={event => setPassword(current => ({ ...current, currentPassword: event.target.value }))} autoComplete="current-password" /></label>
@@ -131,7 +145,7 @@ export default function AccountPage() {
         <div className="account-security-note"><b>账号安全提示</b><span>请勿与他人共享密码，管理员也不会向你索要密码。</span></div>
       </form>
     </section>
-    <section className="account-data-grid">
+    <section id="data-rights" className="account-data-grid">
       <article className="portal-card account-data-card">
         <div className="account-head"><div><span>ACTIVE SESSIONS</span><h2>登录设备</h2></div><button type="button" onClick={revokeOthers}>退出其他设备</button></div>
         <p>平台只保存设备类型和不可逆摘要，不保存完整 IP 地址。</p>

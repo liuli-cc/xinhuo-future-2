@@ -3,7 +3,7 @@
  */
 
 import type { ResumeStructured } from "./resume-parser";
-import type { JobStructured } from "./job-parser";
+import type { JobStructured } from "@/modules/group-3-career/client/job-parser";
 
 export type InterviewPlanQuestion = {
   id: string;

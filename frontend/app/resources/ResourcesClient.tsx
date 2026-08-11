@@ -1,10 +1,11 @@
 "use client";
 
-import { apiFetch } from "../../lib/bmob-api";
+import { apiFetch } from "@/modules/shared/api/bmob-api";
 
 import { useEffect, useMemo, useState } from "react";
-import PortalFrame from "../components/PortalFrame";
-import { loadCloudState, saveCloudState } from "../../lib/cloud-state-client";
+import PortalFrame from "@/modules/shared/components/PortalFrame";
+import { AnimatedBarChart, AnimatedDonutChart, VizSkeleton } from "@/modules/shared/components/DataViz";
+import { loadCloudState, saveCloudState } from "@/modules/shared/state/cloud-state-client";
 
 type Resource = { id: number; title: string; category: string; provider: string; level: string; duration: string; desc: string; tags: string[]; color: string };
 type Faculty = { id: string; name: string; title: string; position: string; mentorLevel: "博士研究生导师" | "硕士研究生导师" | "教师"; researchAreas: string[]; email: string; description: string; profileUrl: string; sourceUpdatedAt: string };
@@ -109,6 +110,13 @@ export default function ResourcesClient() {
 
     {mode === "resources" ? <>
       <section className="resource-banner"><div><span>✦ RESOURCE EXPLORATION</span><h2>从真实目标出发选择成长机会</h2><p>新账号不预设兴趣和能力结论；你可以先浏览资源，形成已核验证据后再进行个性化推荐。</p></div><div><strong>{saved.length}</strong><small>已收藏资源</small></div></section>
+      <section className="resource-viz-grid">
+        <AnimatedBarChart title="公开资源分类" description="展示当前目录中的真实资源数量，不代表推荐排名。" data={[...new Set(resources.map(item => item.category))].map(categoryName => ({ label: categoryName, value: resources.filter(item => item.category === categoryName).length, detail: `${categoryName}类公开资源` }))} />
+        <AnimatedDonutChart title="收藏状态" description="收藏变化后圆环会立即重新展开。" centerLabel="目录资源" data={[
+          { label: "已收藏", value: saved.length, detail: "已同步到你的云端收藏", color: "var(--chart-blue-2)" },
+          { label: "未收藏", value: Math.max(0, resources.length - saved.length), detail: "仍可浏览的目录资源", color: "var(--chart-neutral)" },
+        ]} />
+      </section>
       <div className="filter-tabs">{["全部", "课程", "竞赛", "项目", "活动", "服务", "已收藏"].map(item => <button className={category === item ? "active" : ""} onClick={() => setCategory(item)} key={item}>{item}{item === "已收藏" && saved.length > 0 ? ` ${saved.length}` : ""}</button>)}</div>
       <section className="resource-grid">{filteredResources.map(item => <article className="resource-card portal-card" key={item.id}><div className={`resource-cover ${item.color}`}><span>{item.category}</span><b>{item.title.slice(0, 2)}</b><em>公开资源</em></div><div className="resource-body"><div><span>{item.provider}</span><button aria-label={saved.includes(item.id) ? "取消收藏" : "收藏"} className={saved.includes(item.id) ? "saved" : ""} onClick={() => toggleSave(item.id)}>♡</button></div><h2>{item.title}</h2><p>{item.desc}</p><div className="resource-tags">{item.tags.map(tag => <span key={tag}>{tag}</span>)}</div><footer><span>{item.level} · {item.duration}</span><button onClick={() => setSelectedResource(item)}>查看详情 →</button></footer></div></article>)}</section>
       {filteredResources.length === 0 && <div className="empty-state"><span>⌕</span><h2>没有找到匹配资源</h2><p>换一个关键词或分类试试。</p></div>}
@@ -116,6 +124,13 @@ export default function ResourcesClient() {
       <section className="mentor-hero">
         <div><span>INNER MONGOLIA NORMAL UNIVERSITY</span><h2>{directory?.college ?? "学院师资目录"}</h2><p>{directory?.sourceNote ?? "正在连接学院官网公开目录…"}</p></div>
         <div className="mentor-stats"><div><strong>{directory?.total ?? "-"}</strong><small>公开条目</small></div><div><strong>{directory?.doctoralCount ?? "-"}</strong><small>博士生导师</small></div><div><strong>{directory?.masterCount ?? "-"}</strong><small>硕士生导师</small></div></div>
+      </section>
+      <section className="resource-viz-grid single">
+        {!directory ? <VizSkeleton label="正在读取师资分布" /> : <AnimatedBarChart title="公开师资构成" description="数据来自当前学院官网可核验目录。" data={[
+          { label: "博士生导师", value: directory.doctoralCount, detail: "官网公开标注的博士生导师" },
+          { label: "硕士生导师", value: directory.masterCount, detail: "官网公开标注的硕士生导师" },
+          { label: "其他教师", value: Math.max(0, directory.total - directory.doctoralCount - directory.masterCount), detail: "未标注上述导师级别的公开师资条目" },
+        ]} />}
       </section>
       <div className="mentor-toolbar">
         <label className="mentor-college-select"><span>选择学院</span><select value={college} onChange={event => chooseCollege(event.target.value)}>{colleges.map(item => <option key={item.id} value={item.college}>{item.college}</option>)}</select></label>

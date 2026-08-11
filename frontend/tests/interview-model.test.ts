@@ -8,7 +8,7 @@ import {
   isInterviewModelProvider,
   parseInterviewModelContent,
   sanitizeModelName,
-} from "../lib/interview-model.ts";
+} from "../modules/group-1-interview/client/interview-model.ts";
 
 test("只允许六家预设官方模型服务商", () => {
   assert.equal(isInterviewModelProvider("deepseek"), true);

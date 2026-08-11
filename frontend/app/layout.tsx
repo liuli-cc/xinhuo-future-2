@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./xinhuo-redesign.css";
+import RouteMotionProvider from "@/modules/shared/motion/RouteMotionProvider";
 
 export const metadata: Metadata = {
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_SITE_URL ??
-      "https://xinhuo-student-growth-287017-7-1417313793.sh.run.tcloudbase.com",
+      "http://localhost:3000",
   ),
   title: "薪火·AI 大学生成长平台",
   description: "聚合成长地图、证据型能力画像、可解释成长决策、成长资源与实习就业的学生成长中心。",
@@ -31,8 +33,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="zh-CN">
-      <body>{children}</body>
+    <html lang="zh-CN" data-scroll-behavior="smooth">
+      <body><RouteMotionProvider>{children}</RouteMotionProvider></body>
     </html>
   );
 }

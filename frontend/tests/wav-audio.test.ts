@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { analyzeVoiceFrames, encodePcm16Wav, mergeFloat32Chunks, resampleMono } from "../lib/wav-audio.ts";
+import { analyzeVoiceFrames, encodePcm16Wav, mergeFloat32Chunks, resampleMono } from "../modules/group-1-interview/client/wav-audio.ts";
 
 test("merges, resamples and emits a valid 16 kHz PCM WAV", () => {
   const merged = mergeFloat32Chunks([

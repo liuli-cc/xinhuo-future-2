@@ -2,6 +2,7 @@
 
 import * as THREE from "three";
 import { gsap } from "gsap";
+import { useMotionPreference } from "@/modules/shared/motion/motion-preference";
 import { useEffect, useRef } from "react";
 
 export type InterviewerState = "idle" | "thinking" | "speaking" | "listening" | "scoring";
@@ -148,11 +149,13 @@ export default function VirtualInterviewer({
   audioLevel = 0,
   ttsSource = "none",
 }: VirtualInterviewerProps) {
+  const { reducedMotion } = useMotionPreference();
   const mountRef = useRef<HTMLDivElement>(null);
   const stateRef = useRef(state);
   const audioLevelRef = useRef(audioLevel);
   const rigRef = useRef<Rig | null>(null);
-  const reducedMotionRef = useRef(false);
+  const reducedMotionRef = useRef(reducedMotion);
+  const requestRenderRef = useRef<(() => void) | null>(null);
   const poseRef = useRef<Pose>({
     headTilt: 0,
     headTurn: 0,
@@ -164,6 +167,10 @@ export default function VirtualInterviewer({
 
   useEffect(() => { stateRef.current = state; }, [state]);
   useEffect(() => { audioLevelRef.current = audioLevel; }, [audioLevel]);
+  useEffect(() => {
+    reducedMotionRef.current = reducedMotion;
+    requestRenderRef.current?.();
+  }, [reducedMotion]);
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -173,7 +180,7 @@ export default function VirtualInterviewer({
     camera.position.set(0, 0.25, 5.5);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFShadowMap;
@@ -201,10 +208,10 @@ export default function VirtualInterviewer({
     const rig = buildLiuliTeacher(scene);
     rigRef.current = rig;
     const poseState = poseRef.current;
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    reducedMotionRef.current = reducedMotion;
     let frame = 0;
     let disposed = false;
+    let inViewport = true;
+    let pageVisible = document.visibilityState === "visible";
     const startedAt = Date.now();
 
     const resize = () => {
@@ -213,16 +220,19 @@ export default function VirtualInterviewer({
       renderer.setSize(width, height, false);
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
+      renderer.render(scene, camera);
     };
     const observer = new ResizeObserver(resize);
     observer.observe(mount);
     resize();
 
     const render = () => {
-      if (disposed) return;
+      frame = 0;
+      if (disposed || !inViewport || !pageVisible) return;
       const t = (Date.now() - startedAt) / 1000;
       const current = stateRef.current;
-      const motion = reducedMotion ? 0 : 1;
+      const isReducedMotion = reducedMotionRef.current;
+      const motion = isReducedMotion ? 0 : 1;
       const pose = poseState;
       rig.root.position.y = -0.18 + Math.sin(t * 1.8) * 0.018 * motion;
       rig.root.rotation.y = Math.sin(t * 0.48) * 0.035 * motion;
@@ -238,22 +248,48 @@ export default function VirtualInterviewer({
         pose.rightArm + (current === "speaking" ? Math.sin(t * 4.4) * 0.12 * motion : current === "scoring" ? Math.sin(t * 5) * 0.03 * motion : 0),
       );
 
-      const blink = !reducedMotion && Math.sin(t * 0.82) > 0.992;
+      const blink = !isReducedMotion && Math.sin(t * 0.82) > 0.992;
       rig.eyes.forEach(eye => { eye.scale.y = blink ? 0.08 : 1; });
       const voiceBounce = current === "speaking" ? Math.min(0.04, audioLevelRef.current * 0.04) : 0;
       rig.head.position.y = voiceBounce;
 
       renderer.render(scene, camera);
-      frame = requestAnimationFrame(render);
+      if (!isReducedMotion) frame = requestAnimationFrame(render);
     };
+    const requestRender = () => {
+      if (disposed || frame || !inViewport || !pageVisible) return;
+      if (reducedMotionRef.current) render();
+      else frame = requestAnimationFrame(render);
+    };
+    requestRenderRef.current = requestRender;
+
+    const intersectionObserver = new IntersectionObserver(entries => {
+      inViewport = entries[0]?.isIntersecting ?? true;
+      if (!inViewport && frame) {
+        cancelAnimationFrame(frame);
+        frame = 0;
+      } else requestRender();
+    }, { rootMargin: "80px" });
+    intersectionObserver.observe(mount);
+    const onVisibilityChange = () => {
+      pageVisible = document.visibilityState === "visible";
+      if (!pageVisible && frame) {
+        cancelAnimationFrame(frame);
+        frame = 0;
+      } else requestRender();
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
     render();
 
     return () => {
       disposed = true;
       cancelAnimationFrame(frame);
       observer.disconnect();
+      intersectionObserver.disconnect();
+      document.removeEventListener("visibilitychange", onVisibilityChange);
       gsap.killTweensOf(poseState);
       rigRef.current = null;
+      requestRenderRef.current = null;
       renderer.dispose();
       renderer.domElement.remove();
       scene.traverse(object => {
@@ -278,7 +314,9 @@ export default function VirtualInterviewer({
             : { headTilt: 0, headTurn: 0, headNod: 0, leftArm: 0.08, rightArm: -0.08, rightArmPitch: 0 };
 
     if (reducedMotionRef.current) {
+      gsap.killTweensOf(poseRef.current);
       Object.assign(poseRef.current, target);
+      requestRenderRef.current?.();
       return;
     }
 
@@ -288,7 +326,7 @@ export default function VirtualInterviewer({
       ease: "power3.out",
       overwrite: "auto",
     });
-  }, [state]);
+  }, [reducedMotion, state]);
 
   const expression = state === "listening"
     ? "专注倾听"

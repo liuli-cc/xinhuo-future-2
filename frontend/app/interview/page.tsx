@@ -1,35 +1,37 @@
 "use client";
 
-import { apiFetch } from "../../lib/bmob-api";
-import PortalFrame from "../components/PortalFrame";
-import VirtualInterviewer, { type InterviewerState } from "../components/VirtualInterviewer";
+import { apiFetch } from "@/modules/shared/api/bmob-api";
+import PortalFrame from "@/modules/shared/components/PortalFrame";
+import { AnimatedBarChart, AnimatedLineChart } from "@/modules/shared/components/DataViz";
+import VirtualInterviewer, { type InterviewerState } from "@/modules/group-1-interview/components/VirtualInterviewer";
 import ContinuousSpeechRecognition, {
   supportsBrowserSpeechRecognition,
   type LiveSpeechStatus,
-} from "../components/ContinuousSpeechRecognition";
-import ResumeUploader from "../components/ResumeUploader";
+} from "@/modules/group-1-interview/components/ContinuousSpeechRecognition";
+import ResumeUploader from "@/modules/group-1-interview/components/ResumeUploader";
 import {
   INTERVIEW_MODEL_PROVIDERS,
   type InterviewModelProvider,
   type InterviewModelAnalysis,
-} from "../../lib/interview-model";
-import type { ResumeStructured } from "../../lib/resume-parser";
-import type { JobStructured } from "../../lib/job-parser";
-import { defaultInterviewPlan, type InterviewPlan } from "../../lib/interview-plan";
-import type { SpeechMetrics } from "../../lib/speech-analysis";
-import { generateReportV2, type ScoredAnswer, type InterviewReportV2 } from "../../lib/scoring-v2";
-import { buildInterviewReportMarkdown, interviewReportFileName } from "../../lib/interview-report-export";
+} from "@/modules/group-1-interview/client/interview-model";
+import type { ResumeStructured } from "@/modules/group-1-interview/client/resume-parser";
+import type { JobStructured } from "@/modules/group-3-career/client/job-parser";
+import { defaultInterviewPlan, type InterviewPlan } from "@/modules/group-1-interview/client/interview-plan";
+import type { SpeechMetrics } from "@/modules/group-1-interview/client/speech-analysis";
+import { generateReportV2, type ScoredAnswer, type InterviewReportV2 } from "@/modules/group-1-interview/client/scoring-v2";
+import { buildInterviewReportMarkdown, interviewReportFileName } from "@/modules/group-1-interview/client/interview-report-export";
 import {
   downloadInterviewReportPdf,
   downloadInterviewReportWord,
-} from "../../lib/interview-report-download";
-import type { VoiceCaptureStats } from "../../lib/wav-audio";
-import { createResumeUploadId, splitResumeBase64 } from "../../lib/resume-upload";
+} from "@/modules/group-1-interview/client/interview-report-download";
+import type { VoiceCaptureStats } from "@/modules/group-1-interview/client/wav-audio";
+import { createResumeUploadId, splitResumeBase64 } from "@/modules/group-1-interview/client/resume-upload";
+import { useMotionPreference } from "@/modules/shared/motion/motion-preference";
 import {
   canUseLocalResumeOcr,
   extractResumeTextWithOcr,
   isResumeImage,
-} from "../../lib/client-resume-ocr";
+} from "@/modules/group-1-interview/client/client-resume-ocr";
 import { gsap } from "gsap";
 import { useGSAP } from "@gsap/react";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
@@ -57,7 +59,7 @@ const providerConsoles: Record<InterviewModelProvider, string> = {
 
 export default function InterviewPage() {
   const studioRef = useRef<HTMLDivElement>(null);
-  
+  const { reducedMotion } = useMotionPreference();
 
   /* ── 页面状态 ── */
   const [pageMode, setPageMode] = useState<PageMode>("setup");
@@ -134,7 +136,7 @@ export default function InterviewPage() {
 
   useGSAP(() => {
     const root = studioRef.current;
-    if (!root || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (!root || reducedMotion) return;
 
     if (pageMode === "setup") {
       const panel = root.querySelector<HTMLElement>("[data-studio-panel]");
@@ -206,7 +208,7 @@ export default function InterviewPage() {
     }
   }, {
     scope: studioRef,
-    dependencies: [pageMode, setupStep, conversationLog.length, index, report?.calculatedAt],
+    dependencies: [pageMode, setupStep, conversationLog.length, index, report?.calculatedAt, reducedMotion],
     revertOnUpdate: true,
   });
 
@@ -222,6 +224,13 @@ export default function InterviewPage() {
     const timer = setInterval(() => setCallSeconds(value => value + 1), 1000);
     return () => clearInterval(timer);
   }, [callPaused, pageMode]);
+
+  useEffect(() => {
+    if (pageMode !== "active") return;
+    const preventAccidentalLeave = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener("beforeunload", preventAccidentalLeave);
+    return () => window.removeEventListener("beforeunload", preventAccidentalLeave);
+  }, [pageMode]);
 
   useEffect(() => {
     callPausedRef.current = callPaused;
@@ -665,7 +674,7 @@ export default function InterviewPage() {
     }
 
     // 评分
-    const { scoreAnswerV2 } = await import("../../lib/scoring-v2");
+    const { scoreAnswerV2 } = await import("@/modules/group-1-interview/client/scoring-v2");
     const jobSkills = jobParsed?.skills ?? [];
     const scored = scoreAnswerV2(currentQuestion, finalAnswer, answerSeconds, jobSkills, speechMetrics);
     if (modelInsight) {
@@ -1065,7 +1074,7 @@ export default function InterviewPage() {
               ? "正在整理反馈"
               : "实时面试进行中";
     return (
-      <div ref={studioRef} className="interview-studio-root interview-studio-root--active">
+      <div ref={studioRef} className="interview-studio-root interview-studio-root--active" data-navigation-guard="面试正在进行，离开会结束当前语音与作答状态。确认离开吗？">
       <PortalFrame active="interview" eyebrow={`${jobParsed?.title ?? "通用能力"} INTERVIEW`}
         title="与liuli老师的实时模拟面试"
         subtitle="约 15 分钟连续对话 · Chrome 免费实时识别 · 原始录音不保存"
@@ -1278,6 +1287,27 @@ export default function InterviewPage() {
             <h2>{report.overallScore >= 80 ? "表现优秀，继续保持" : report.overallScore >= 60 ? "基础扎实，持续改进" : "建议加强练习"}</h2>
             <p style={{ fontSize: 10, color: "var(--ink-dim)" }}>共 {report.scoredAnswers.length} 道回答。{report.trendNote}</p>
           </div>
+          </section>
+
+          <section className="report-viz-grid">
+            <AnimatedBarChart
+              title="五维能力换算"
+              description="统一换算为百分制，悬停查看原始维度分值。"
+              max={100}
+              data={([
+                { key: "content", label: "经历内容", max: 30 },
+                { key: "roleMatch", label: "岗位匹配", max: 20 },
+                { key: "professionalDepth", label: "专业深度", max: 20 },
+                { key: "logicStructure", label: "逻辑结构", max: 15 },
+                { key: "languageExpression", label: "语言表达", max: 15 },
+              ] as const).map(item => ({ label: item.label, value: Math.round(report.dimensions[item.key] / item.max * 100), detail: `原始得分 ${report.dimensions[item.key]} / ${item.max}` }))}
+            />
+            <AnimatedLineChart
+              title="逐题表现曲线"
+              description="每个节点对应一轮真实回答，悬停查看题目和用时。"
+              max={100}
+              data={report.scoredAnswers.map((item, index) => ({ label: `第 ${index + 1} 题`, value: item.score, detail: `${item.question}，用时 ${format(item.seconds)}` }))}
+            />
           </section>
 
           {/* 五维得分 */}

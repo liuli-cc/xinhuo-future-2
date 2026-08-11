@@ -1,10 +1,10 @@
 "use client";
 
-import { apiFetch } from "../../lib/bmob-api";
+import { apiFetch } from "@/modules/shared/api/bmob-api";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Profile } from "./PortalFrame";
-import { imnuCollegeNames, isOfficialImnuCollege } from "../../data/imnu-colleges";
+import { imnuCollegeNames, isOfficialImnuCollege } from "@/data/imnu-colleges";
 
 type AccountStatus = "pending" | "active" | "rejected" | "suspended";
 type ManagedAccount = {

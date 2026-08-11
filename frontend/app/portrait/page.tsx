@@ -1,9 +1,10 @@
 "use client";
 
-import { apiFetch } from "../../lib/bmob-api";
+import { apiFetch } from "@/modules/shared/api/bmob-api";
 
 import { FormEvent, useEffect, useState } from "react";
-import PortalFrame, { useStudentProfile } from "../components/PortalFrame";
+import PortalFrame, { useStudentProfile } from "@/modules/shared/components/PortalFrame";
+import { AnimatedBarChart, AnimatedDonutChart, VizSkeleton } from "@/modules/shared/components/DataViz";
 import {
   ABILITY_DIMENSIONS,
   SOURCE_META,
@@ -11,16 +12,16 @@ import {
   type AbilityDimension,
   type EvidenceSource,
   type PortraitResult,
-} from "../../lib/growth-engine";
+} from "@/modules/group-2-growth/client/growth-engine";
 
 const emptyPortrait = calculatePortrait([], 0);
 const categoryOptions = ["课程学习", "项目实践", "竞赛经历", "科研创新", "志愿服务", "实习实践", "教师评价", "个人复盘"];
 const dimensionColors: Record<AbilityDimension, string> = {
-  "专业学习": "#65a8ff",
-  "项目实践": "#8099d8",
-  "创新探索": "#4baed4",
-  "沟通协作": "#9aa8c8",
-  "职业准备": "#7986cb",
+  "专业学习": "var(--chart-blue-1)",
+  "项目实践": "var(--chart-blue-2)",
+  "创新探索": "var(--chart-blue-3)",
+  "沟通协作": "var(--chart-blue-4)",
+  "职业准备": "var(--chart-blue-5)",
 };
 
 function freshForm() {
@@ -36,6 +37,16 @@ function freshForm() {
     quality: 75,
     contribution: 70,
   };
+}
+
+function isPortraitResult(value: unknown): value is PortraitResult {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Partial<PortraitResult>;
+  return Array.isArray(candidate.dimensions)
+    && Array.isArray(candidate.evidence)
+    && typeof candidate.overallScore === "number"
+    && typeof candidate.nextAction?.title === "string"
+    && typeof candidate.nextAction?.detail === "string";
 }
 
 export default function PortraitPage() {
@@ -62,7 +73,7 @@ export default function PortraitPage() {
     apiFetch(`/api/portrait?studentId=${encodeURIComponent(profile.studentId)}`)
       .then(async response => {
         const data = await response.json() as { portrait?: PortraitResult; error?: string };
-        if (!response.ok || !data.portrait) throw new Error(data.error || "成长证据读取失败");
+        if (!response.ok || !isPortraitResult(data.portrait)) throw new Error(data.error || "成长证据读取失败：云端数据结构暂不可用");
         if (active) { setPortrait(data.portrait); setError(""); }
       })
       .catch(reason => { if (active) setError(reason instanceof Error ? reason.message : "成长证据读取失败"); })
@@ -96,7 +107,7 @@ export default function PortraitPage() {
         body: JSON.stringify({ studentId: profile.studentId, ...form, attachmentId }),
       });
       const data = await response.json() as { portrait?: PortraitResult; error?: string };
-      if (!response.ok || !data.portrait) throw new Error(data.error || "证据保存失败");
+      if (!response.ok || !isPortraitResult(data.portrait)) throw new Error(data.error || "证据保存失败：云端数据结构暂不可用");
       setPortrait(data.portrait);
       setForm(freshForm());
       setFile(null);
@@ -115,7 +126,7 @@ export default function PortraitPage() {
     try {
       const response = await apiFetch(`/api/portrait?studentId=${encodeURIComponent(profile.studentId)}&id=${id}`, { method: "DELETE" });
       const data = await response.json() as { portrait?: PortraitResult; error?: string };
-      if (!response.ok || !data.portrait) throw new Error(data.error || "证据删除失败");
+      if (!response.ok || !isPortraitResult(data.portrait)) throw new Error(data.error || "证据删除失败：云端数据结构暂不可用");
       setPortrait(data.portrait);
       notify("证据已删除，能力分数已重新计算");
     } catch (reason) {
@@ -150,6 +161,32 @@ export default function PortraitPage() {
           <div><strong>{portrait.confidence}%</strong><span>计算可信度</span></div>
         </div>
       </div>
+    </section>
+
+    <section className="portrait-viz-grid">
+      {loading ? <><VizSkeleton /><VizSkeleton /></> : <>
+        <AnimatedBarChart
+          title="五维能力证据强度"
+          description="所有能力使用同一百分制，悬停可以查看证据数量与可信度。"
+          max={100}
+          data={portrait.dimensions.map((item, index) => ({
+            label: item.name,
+            value: item.score,
+            detail: `${item.evidenceCount} 条证据，可信度 ${item.confidence}%`,
+            color: Object.values(dimensionColors)[index],
+          }))}
+        />
+        <AnimatedDonutChart
+          title="证据审核状态"
+          description="新增、删除或审核状态变化后，圆环会重新展开。"
+          centerLabel="证据总数"
+          data={[
+            { label: "已核验", value: portrait.verifiedEvidence, detail: "参与能力分数计算", color: "var(--chart-blue-2)" },
+            { label: "待审核", value: portrait.pendingEvidence, detail: "暂不参与能力计算", color: "var(--chart-blue-5)" },
+            { label: "其他", value: Math.max(0, portrait.totalEvidence - portrait.verifiedEvidence - portrait.pendingEvidence), detail: "被驳回或未满足条件", color: "var(--chart-neutral)" },
+          ]}
+        />
+      </>}
     </section>
 
     <section className="ep-section">

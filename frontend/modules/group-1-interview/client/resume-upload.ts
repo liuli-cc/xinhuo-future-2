@@ -1,5 +1,5 @@
-// CloudBase's public HTTP gateway can reject JSON bodies well below 512KB.
-// Keep each Base64 request under 100KB including JSON overhead.
+// Preserve the existing conservative Base64 chunk size until the FastAPI
+// resume-upload endpoint is migrated and its multipart limit is confirmed.
 export const RESUME_UPLOAD_CHUNK_BYTES = 96 * 1024;
 export const RESUME_UPLOAD_MAX_CHUNKS = 48;
 

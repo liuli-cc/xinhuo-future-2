@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parsePastedJob } from "../lib/job-import-parser.ts";
+import { parsePastedJob } from "../modules/group-3-career/client/job-import-parser.ts";
 
 test("只解析学生粘贴的 BOSS 岗位内容，不访问外部链接", () => {
   const draft = parsePastedJob({

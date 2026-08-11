@@ -1,10 +1,11 @@
 "use client";
 
-import { apiFetch } from "../../lib/bmob-api";
+import { apiFetch } from "@/modules/shared/api/bmob-api";
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
-import AccountManagementPanel from "../components/AccountManagementPanel";
-import PortalFrame, { useStudentProfile } from "../components/PortalFrame";
+import AccountManagementPanel from "@/modules/shared/components/AccountManagementPanel";
+import PortalFrame, { useStudentProfile } from "@/modules/shared/components/PortalFrame";
+import { AnimatedBarChart, AnimatedDonutChart, VizSkeleton } from "@/modules/shared/components/DataViz";
 
 type Overview = {
   accounts: { total: number; students: number; admins: number; staff: number; pending: number };
@@ -140,6 +141,31 @@ export default function AdminPage() {
       <article className="portal-card"><span>成长任务</span><strong>{overview?.records.growthTasks ?? "-"}</strong><p>按账号独立保存</p></article>
       <article className="portal-card"><span>证据与文件</span><strong>{overview?.records.evidence ?? "-"}</strong><p>{overview?.records.evidenceFiles ?? "-"} 个云端附件</p></article>
       <article className="portal-card"><span>待审核</span><strong>{overview?.accounts.pending ?? "-"}</strong><p>{reviews.length} 条成长佐证待核验</p></article>
+    </section>}
+
+    {canManage && <section className="admin-viz-grid">
+      {!overview ? <><VizSkeleton /><VizSkeleton /></> : <>
+        <AnimatedDonutChart
+          title="账号角色分布"
+          description="按当前管理范围统计学生、教职工与管理员账号。"
+          centerLabel="账号总数"
+          data={[
+            { label: "学生", value: overview.accounts.students, detail: "当前范围内学生账号", color: "var(--chart-blue-2)" },
+            { label: "教职工", value: overview.accounts.staff, detail: "教师与辅导员账号", color: "var(--chart-blue-4)" },
+            { label: "管理员", value: overview.accounts.admins, detail: "学院、学校与平台管理员", color: "var(--chart-blue-6)" },
+          ]}
+        />
+        <AnimatedBarChart
+          title="云端记录构成"
+          description="展示当前接口返回范围内的任务、佐证、附件与状态记录。"
+          data={[
+            { label: "成长任务", value: overview.records.growthTasks, detail: "学生成长路径任务" },
+            { label: "成长佐证", value: overview.records.evidence, detail: "能力与任务佐证记录" },
+            { label: "云端状态", value: overview.records.cloudStates, detail: "跨页面状态记录" },
+            { label: "佐证附件", value: overview.records.evidenceFiles, detail: "存储在云端的附件" },
+          ]}
+        />
+      </>}
     </section>}
 
     {canManage && <section className="portal-card admin-storage-card">

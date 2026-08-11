@@ -1,9 +1,10 @@
 "use client";
 
-import { apiFetch } from "../../lib/bmob-api";
+import { apiFetch } from "@/modules/shared/api/bmob-api";
 
 import { useEffect, useState } from "react";
-import PortalFrame, { useStudentProfile } from "../components/PortalFrame";
+import PortalFrame, { useStudentProfile } from "@/modules/shared/components/PortalFrame";
+import { AnimatedBarChart, AnimatedDonutChart, VizSkeleton } from "@/modules/shared/components/DataViz";
 
 type ProfileOption = { id: string; label: string; description: string };
 type Gap = { dimension: string; score: number; threshold: number; gap: number; weightedGap: number };
@@ -90,11 +91,30 @@ export default function DecisionPage() {
     </section>
 
     {error && <div className="account-feedback error">{error}</div>}
-    {loading ? <div className="decision-loading portal-card">正在从已核验成长档案计算方案…</div> : plan && <>
+    {loading ? <div className="decision-viz-loading"><VizSkeleton /><VizSkeleton /></div> : plan && <>
       <section className="decision-summary">
         <article className="portal-card"><span>目标准备度</span><strong>{plan.readiness}</strong><p>按“{plan.target.label}”能力权重计算</p></article>
         <article className="portal-card"><span>计算可信度</span><strong>{plan.confidence}%</strong><p>来自 {plan.evidenceBasis} 条已核验佐证</p></article>
         <article className="portal-card"><span>主要能力差距</span><strong>{plan.gaps[0]?.gap ?? 0}</strong><p>{plan.gaps[0]?.dimension ?? "等待真实证据"}</p></article>
+      </section>
+
+      <section className="decision-viz-grid">
+        <AnimatedBarChart
+          title="当前能力与目标差距"
+          description={`目标画像：${plan.target.label}。柱高表示当前分数。`}
+          max={100}
+          data={plan.gaps.map(item => ({ label: item.dimension, value: item.score, detail: `目标 ${item.threshold}，仍差 ${item.gap}` }))}
+        />
+        <AnimatedDonutChart
+          title="目标准备度"
+          description={`由 ${plan.evidenceBasis} 条已核验佐证计算，可信度 ${plan.confidence}%。`}
+          centerLabel="准备度"
+          unit="%"
+          data={[
+            { label: "已具备", value: plan.readiness, detail: "当前证据支持的准备度", color: "var(--chart-blue-2)" },
+            { label: "待补强", value: Math.max(0, 100 - plan.readiness), detail: "达到目标画像仍需补足的部分", color: "var(--chart-neutral)" },
+          ]}
+        />
       </section>
 
       <section className="decision-grid">

@@ -1,4 +1,4 @@
-import { apiFetch } from "./bmob-api";
+import { apiFetch } from "@/modules/shared/api/bmob-api";
 
 export type CloudStateKey = "ai_chat" | "resource_saved" | "career_saved" | "career_applied" | "interview_history";
 

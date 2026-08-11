@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildInterviewReportMarkdown, interviewReportFileName } from "../lib/interview-report-export.ts";
-import { generateReportV2, scoreAnswerV2 } from "../lib/scoring-v2.ts";
+import { buildInterviewReportMarkdown, interviewReportFileName } from "../modules/group-1-interview/client/interview-report-export.ts";
+import { generateReportV2, scoreAnswerV2 } from "../modules/group-1-interview/client/scoring-v2.ts";
 
 test("面试报告导出包含岗位、五维得分、行动计划与逐题原文", () => {
   const answer = scoreAnswerV2(

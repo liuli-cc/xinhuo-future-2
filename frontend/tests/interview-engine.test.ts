@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { scoreInterview, scoreInterviewAnswer } from "../lib/interview-engine.ts";
+import { scoreInterview, scoreInterviewAnswer } from "../modules/group-1-interview/client/interview-engine.ts";
 
 test("结构完整且量化的岗位回答获得更高分", () => {
   const weak = scoreInterviewAnswer({ question: "介绍项目", answer: "我参加了一个项目，做了一些工作。", seconds: 20 }, "后端开发");

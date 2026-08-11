@@ -20,9 +20,8 @@ export type ResumeStructured = {
   selfEval: string;
 };
 
-// CloudBase HTTP functions cap the request body. Base64 adds roughly 33%, so a
-// 3 MB source document stays comfortably below the gateway limit together with
-// the JSON envelope.
+// The former upload gateway capped request bodies. Keep this client-side limit
+// until the FastAPI resume service defines its final streaming/upload contract.
 export const RESUME_MAX_BYTES = 3 * 1024 * 1024;
 export const RESUME_MAX_MB = RESUME_MAX_BYTES / 1024 / 1024;
 export const ALLOWED_RESUME_MIME = [
@@ -129,7 +128,9 @@ function extractSectionPairs(text: string, sectionLabels: string[]): Array<{ nam
           pairs.push(current);
           current = { name: cleaned.slice(0, 80), description: "" };
         } else {
-          current.description += (current.description ? "；" : "") + cleaned;
+          // Keep extracted line boundaries. Inserting semicolons here makes a
+          // PDF line wrap look like broken punctuation in the preview.
+          current.description += (current.description ? "\n" : "") + cleaned;
         }
       }
       if (current && current.name) pairs.push(current);

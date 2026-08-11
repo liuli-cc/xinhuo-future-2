@@ -1,113 +1,178 @@
 "use client";
 
-import { apiFetch } from "../../lib/bmob-api";
-
+import { apiFetch } from "@/modules/shared/api/bmob-api";
+import { AnimatedBarChart, AnimatedDonutChart, VizSkeleton, type VizDatum } from "@/modules/shared/components/DataViz";
+import PortalFrame, { useStudentProfile } from "@/modules/shared/components/PortalFrame";
+import FourYearJourney from "@/modules/group-2-growth/components/FourYearJourney";
+import {
+  ArrowUpRight,
+  BookOpenText,
+  Briefcase,
+  ChartDonut,
+  CheckCircle,
+  ClockCountdown,
+  MapTrifold,
+  Robot,
+  Sparkle,
+} from "@phosphor-icons/react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useStudentProfile } from "../components/PortalFrame";
 
 const features = [
-  { id: "map", title: "成长地图", en: "GROWTH MAP", desc: "从自我认知到高质量就业，拆解大学四年的每个关键阶段。", icon: "⌘", ready: true, className: "feature-map" },
-  { id: "interview", title: "模拟面试", en: "MOCK INTERVIEW", desc: "AI 虚拟面试官陪你练习，提升表达与应变能力。", icon: "◉", ready: true, className: "feature-interview" },
-  { id: "portrait", title: "能力画像", en: "ABILITY PROFILE", desc: "聚合学业、竞赛、项目和实践数据，看见能力变化。", icon: "◇", ready: true, className: "feature-profile" },
-  { id: "ai", title: "成长决策引擎", en: "DECISION ENGINE", desc: "基于能力差距、目标权重和可执行成本，生成可解释行动优先级。", icon: "策", ready: true, className: "feature-ai" },
-  { id: "resources", title: "成长资源", en: "RESOURCE HUB", desc: "精准匹配课程、竞赛、证书、导师和校内成长机会。", icon: "▦", ready: true, className: "feature-resource" },
-  { id: "career", title: "实习就业", en: "CAREER CENTER", desc: "用学生画像匹配实习岗位，管理简历、投递与面试进度。", icon: "▱", ready: true, className: "feature-career" },
+  { id: "map", title: "成长地图", desc: "展开大学四年的阶段路径与真实任务。", icon: MapTrifold, href: "/growth-map", className: "wide" },
+  { id: "interview", title: "模拟面试", desc: "围绕真实简历和岗位完成语音练习。", icon: Robot, href: "/interview", className: "" },
+  { id: "portrait", title: "能力画像", desc: "让每条已核验佐证进入能力计算。", icon: ChartDonut, href: "/portrait", className: "" },
+  { id: "ai", title: "成长决策", desc: "看清目标差距与下一项优先行动。", icon: Sparkle, href: "/ai", className: "tall" },
+  { id: "resources", title: "成长资源", desc: "匹配课程、竞赛、导师与公开资源。", icon: BookOpenText, href: "/resources", className: "" },
+  { id: "career", title: "实习就业", desc: "保存真实岗位，记录投递与复盘。", icon: Briefcase, href: "/career", className: "wide" },
 ];
 
-const MONTHS = ["JANUARY","FEBRUARY","MARCH","APRIL","MAY","JUNE","JULY","AUGUST","SEPTEMBER","OCTOBER","NOVEMBER","DECEMBER"];
-const DAYS = ["SUNDAY","MONDAY","TUESDAY","WEDNESDAY","THURSDAY","FRIDAY","SATURDAY"];
+const months = ["1 月", "2 月", "3 月", "4 月", "5 月", "6 月", "7 月", "8 月", "9 月", "10 月", "11 月", "12 月"];
+const days = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
+const journeyLabels = ["大一上", "大一下", "大二上", "大二下", "大三上", "大三下", "大四上", "大四下"];
+const journeyThemes = [
+  "适应大学，认识自己和专业",
+  "拓宽边界，找到值得投入的方向",
+  "能力筑基，把知识变成作品",
+  "项目实践，让能力变成经历",
+  "理解职业，准备第一次实习",
+  "进入真实场景，验证职业方向",
+  "聚焦去向，把准备转化为结果",
+  "完成毕业，平稳走向下一站",
+];
+
+function getCurrentSemester(grade: string) {
+  const entryYear = Number(grade.match(/\d{4}/)?.[0]);
+  if (!entryYear) return 0;
+  const now = new Date();
+  const academicYear = now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1;
+  const term = now.getMonth() >= 8 ? 0 : 1;
+  return Math.max(0, Math.min(7, (academicYear - entryYear) * 2 + term));
+}
+
+type DashboardStats = {
+  verifiedTasks: number;
+  pendingTasks: number;
+  abilityScore: number;
+  verifiedEvidence: number;
+  dimensions: VizDatum[];
+  journeyProgress: number[];
+};
+
+const initialStats: DashboardStats = { verifiedTasks: 0, pendingTasks: 0, abilityScore: 0, verifiedEvidence: 0, dimensions: [], journeyProgress: Array(8).fill(0) };
 
 export default function Dashboard() {
   const profile = useStudentProfile();
-  const [toast, setToast] = useState("");
+  const currentSemester = getCurrentSemester(profile.grade);
+  const [selectedJourneySemester, setSelectedJourneySemester] = useState(currentSemester);
   const [greeting, setGreeting] = useState("");
   const [dateStr, setDateStr] = useState("");
-  const [growthStats, setGrowthStats] = useState({ verifiedTasks: 0, pendingTasks: 0, abilityScore: 0, verifiedEvidence: 0 });
+  const [growthStats, setGrowthStats] = useState(initialStats);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setSelectedJourneySemester(currentSemester);
+  }, [currentSemester]);
 
   useEffect(() => {
     const now = new Date();
-    const h = now.getHours();
-    setGreeting(h < 12 ? "上午好" : h < 18 ? "下午好" : "晚上好");
-    setDateStr(`${MONTHS[now.getMonth()]} ${now.getDate()}, ${DAYS[now.getDay()]}`);
+    const hour = now.getHours();
+    setGreeting(hour < 12 ? "上午好" : hour < 18 ? "下午好" : "晚上好");
+    setDateStr(`${months[now.getMonth()]} ${now.getDate()} 日，${days[now.getDay()]}`);
     Promise.all([apiFetch("/api/growth-path"), apiFetch("/api/portrait")])
       .then(async ([tasksResponse, portraitResponse]) => {
-        const tasksBody = await tasksResponse.json() as { tasks?: Array<{ evidenceStatus: string }> };
-        const portraitBody = await portraitResponse.json() as { portrait?: { overallScore: number; verifiedEvidence: number } };
+        const tasksBody = await tasksResponse.json() as { tasks?: Array<{ evidenceStatus: string; semesterIndex?: number; isCustom?: boolean }> };
+        const portraitBody = await portraitResponse.json() as { portrait?: { overallScore: number; verifiedEvidence: number; dimensions?: Array<{ name: string; score: number; evidenceCount: number }> } };
         if (!tasksResponse.ok || !portraitResponse.ok) return;
+        const tasks = tasksBody.tasks ?? [];
+        const journeyProgress = journeyLabels.map((_, semesterIndex) => {
+          const semesterTasks = tasks.filter(item => item.semesterIndex === semesterIndex);
+          const customTaskCount = semesterTasks.filter(item => item.isCustom).length;
+          const totalTasks = 4 + customTaskCount;
+          const verifiedTasks = semesterTasks.filter(item => item.evidenceStatus === "verified").length;
+          return Math.round(Math.min(totalTasks, verifiedTasks) / totalTasks * 100);
+        });
         setGrowthStats({
-          verifiedTasks: (tasksBody.tasks ?? []).filter(item => item.evidenceStatus === "verified").length,
-          pendingTasks: (tasksBody.tasks ?? []).filter(item => item.evidenceStatus === "pending").length,
+          verifiedTasks: tasks.filter(item => item.evidenceStatus === "verified").length,
+          pendingTasks: tasks.filter(item => item.evidenceStatus === "pending").length,
           abilityScore: portraitBody.portrait?.overallScore ?? 0,
           verifiedEvidence: portraitBody.portrait?.verifiedEvidence ?? 0,
+          dimensions: (portraitBody.portrait?.dimensions ?? []).map(item => ({ label: item.name, value: item.score, detail: `${item.evidenceCount} 条证据参与计算` })),
+          journeyProgress,
         });
       })
-      .catch(() => null);
+      .catch(() => null)
+      .finally(() => setLoading(false));
   }, []);
 
-  const featureStat = (id: string) => {
-    if (id === "map") return `已核验·${growthStats.verifiedTasks} 项`;
-    if (id === "portrait") return `证据指数·${growthStats.abilityScore}`;
-    if (id === "interview") return "尚未形成报告";
-    if (id === "ai") return "基于真实档案辅助";
-    return "从 0 开始记录";
-  };
+  const evidenceData: VizDatum[] = [
+    { label: "已核验", value: growthStats.verifiedEvidence, detail: "已进入能力画像与进度计算", color: "var(--chart-blue-2)" },
+    { label: "待审核", value: growthStats.pendingTasks, detail: "审核通过前不会增加成长进度", color: "var(--chart-blue-5)" },
+  ];
 
-  const notify = (title: string) => {
-    setToast(title);
-    window.setTimeout(() => setToast(""), 2300);
-  };
+  return <PortalFrame
+    active="dashboard"
+    eyebrow="你的成长总览"
+    title={`${greeting}，${profile.name}`}
+    subtitle={`${dateStr}。用真实行动和可核验成果，推进下一段成长。`}
+    actions={<Link className="primary-action" href="/growth-map"><MapTrifold size={18} weight="duotone" />查看成长路径</Link>}
+  >
+    <section className="dashboard-redesign-hero">
+      <div className="dashboard-redesign-copy">
+        <span>当前成长状态</span>
+        <h2>{growthStats.verifiedTasks ? `已有 ${growthStats.verifiedTasks} 项任务通过核验` : "从第一条真实成长佐证开始"}</h2>
+        <p>{growthStats.pendingTasks ? `${growthStats.pendingTasks} 项佐证正在等待审核。审核通过后，图表和成长地图会自动重绘。` : "平台不会生成默认高分。完成任务、提交成果并通过审核后，数据才会变化。"}</p>
+        <div className="dashboard-hero-actions"><Link href="/portrait">查看能力画像 <ArrowUpRight size={17} /></Link><Link href="/ai">生成行动优先级 <Sparkle size={17} /></Link></div>
+      </div>
+      <div className="dashboard-score-orbit" aria-label={`当前证据能力指数 ${growthStats.abilityScore}`}>
+        <i style={{ "--score": `${growthStats.abilityScore * 3.6}deg` } as React.CSSProperties} />
+        <div><strong>{loading ? "-" : growthStats.abilityScore}</strong><span>证据能力指数</span><small>{growthStats.verifiedEvidence} 条已核验佐证</small></div>
+      </div>
+    </section>
 
-  return (
-    <main className="dashboard-shell">
-      <aside className="dash-sidebar">
-        <Link className="dash-brand" href="/dashboard"><span><i /></span><b>薪火</b></Link>
-        <nav className="dash-nav">
-          <button className="active" aria-current="page"><i aria-hidden="true">▤</i><span>成长首页</span><em className="nav-active-indicator" /></button>
-          <Link href="/growth-map"><i>⌘</i><span>成长地图</span></Link>
-          <Link href="/interview"><i>◉</i><span>模拟面试</span></Link>
-          <Link href="/portrait"><i>◇</i><span>能力画像</span></Link>
-          <Link href="/ai"><i>策</i><span>成长决策</span></Link>
-          <Link href="/resources"><i>▦</i><span>成长资源</span></Link>
-          <Link href="/career"><i>▱</i><span>实习就业</span></Link>
-          {["teacher", "counselor", "college_admin", "school_admin", "admin"].includes(profile.role) && <Link href="/admin"><i>管</i><span>管理中心</span></Link>}
-        </nav>
-        <div className="dash-side-bottom"><div className="completion"><div><span>已核验成长任务</span><b>{growthStats.verifiedTasks} 项</b></div><i><em style={{ width: growthStats.verifiedTasks ? "100%" : "0%" }} /></i><small>{growthStats.pendingTasks ? `${growthStats.pendingTasks} 项佐证等待管理员审核` : "提交真实佐证并审核通过后开始累计"}</small></div><Link href="/account"><span className="mini-avatar">{profile.name.slice(0, 1)}</span><span><b>{profile.name}</b><small>{profile.studentId}</small></span><i>›</i></Link></div>
-      </aside>
+    <FourYearJourney
+      semesters={journeyLabels.map((label, index) => ({ label, theme: journeyThemes[index], progress: growthStats.journeyProgress[index] ?? 0 }))}
+      currentIndex={currentSemester}
+      selectedIndex={selectedJourneySemester}
+      onSelect={setSelectedJourneySemester}
+    />
 
-      <section className="dashboard-main">
-        <header className="dash-topbar"><div><span className="status-dot" />个人云端成长档案正常</div><div><button aria-label="搜索" onClick={() => notify("可在成长资源和实习就业中搜索内容")}>⌕</button><button aria-label="通知" className="bell" onClick={() => notify(growthStats.pendingTasks ? `${growthStats.pendingTasks} 条任务佐证正在等待审核` : "当前没有新的成长提醒")}>⌑{growthStats.pendingTasks > 0 && <i />}</button><Link href="/account">账号设置</Link></div></header>
-        <div className="dash-page">
-          <section className="dash-hero">
-            <div className="hero-text"><p>{dateStr}</p><h1>{greeting}，{profile.name}。</h1><span>{profile.college}·{profile.major}·{profile.className}</span></div>
-            <div className="dash-ai-brief"><div className="brief-icon">✦</div><div><span>AI DAILY BRIEF</span><p>{growthStats.pendingTasks ? `你有 ${growthStats.pendingTasks} 条佐证正在等待审核，审核通过前进度不会增加。` : growthStats.verifiedTasks ? `已有 ${growthStats.verifiedTasks} 项任务通过核验，继续用真实成果推进成长路径。` : "当前成长进度为 0。完成任务并提交实际佐证，通过核验后才会开始累计。"}</p></div><Link href="/growth-map">去看计划 <i>→</i></Link></div>
-          </section>
+    <section className="dashboard-viz-grid">
+      {loading ? <><VizSkeleton /><VizSkeleton /></> : <>
+        <AnimatedBarChart data={growthStats.dimensions.length ? growthStats.dimensions : [
+          { label: "专业学习", value: 0, detail: "尚无已核验证据" },
+          { label: "项目实践", value: 0, detail: "尚无已核验证据" },
+          { label: "创新探索", value: 0, detail: "尚无已核验证据" },
+          { label: "沟通协作", value: 0, detail: "尚无已核验证据" },
+          { label: "职业准备", value: 0, detail: "尚无已核验证据" },
+        ]} title="五维能力分布" description="采用同一百分制，立体纵深仅用于区分层级。" max={100} depth unit="" />
+        <AnimatedDonutChart data={evidenceData} title="成长证据状态" description="图表只统计当前读取到的真实佐证。" centerLabel="证据总数" unit="" />
+      </>}
+    </section>
 
-          <section className="dash-overview">
-            <div className="dash-heading"><div><span>MY GROWTH CENTER</span><h2>你的成长中心</h2></div><p>所有与成长有关的事，都在这里。</p></div>
-            <div className="feature-grid">
-              {features.map((feature, index) => {
-              const hrefMap: Record<string, string> = { map: "/growth-map", interview: "/interview", portrait: "/portrait", ai: "/ai", resources: "/resources", career: "/career" };
-              return feature.ready ? (
-                <Link className={`feature-card ${feature.className}`} href={hrefMap[feature.id] || `/${feature.id}`} key={feature.id}>
-                  <span className="feature-index">0{index + 1}</span><span className="feature-icon">{feature.icon}</span><div><small>{feature.en}</small><h3>{feature.title}</h3><p>{feature.desc}</p><em>{featureStat(feature.id)}</em></div><b>↗</b>
-                </Link>
-              ) : (
-                <button className={`feature-card ${feature.className}`} onClick={() => notify(feature.title)} key={feature.id}>
-                  <span className="feature-index">0{index + 1}</span><span className="feature-icon">{feature.icon}</span><div><small>{feature.en}</small><h3>{feature.title}</h3><p>{feature.desc}</p><em>{featureStat(feature.id)}</em></div><b>›</b>
-                </button>
-              );
-            })}
-            </div>
-          </section>
+    <section className="dashboard-feature-section">
+      <header><div><span>功能入口</span><h2>围绕一个目标，串起完整成长闭环</h2></div><p>规划、实践、核验、复盘和就业数据保持连通。</p></header>
+      <div className="dashboard-feature-mosaic">
+        {features.map(feature => {
+          const Icon = feature.icon;
+          return <Link className={`dashboard-feature ${feature.className}`} href={feature.href} key={feature.id}>
+            <div><span><Icon size={23} weight="duotone" /></span><ArrowUpRight size={18} /></div><h3>{feature.title}</h3><p>{feature.desc}</p>
+          </Link>;
+        })}
+      </div>
+    </section>
 
-          <section className="dash-bottom-grid">
-            <article className="today-card"><div className="dash-heading small"><div><span>TODAY</span><h2>今日成长节奏</h2></div><Link href="/growth-map">全部任务 →</Link></div><div className="today-list"><div className="dashboard-zero-state"><span>0</span><div><b>暂无已确认成长进度</b><small>选择一项任务，完成后提交真实成果链接、证书编号或评价来源。</small></div><Link href="/growth-map">提交第一项佐证 →</Link></div></div></article>
-            <article className="student-card"><div className="student-card-top"><span className="large-avatar">{profile.name.slice(0, 1)}</span><div><small>STUDENT PROFILE</small><h3>{profile.name}</h3><p>{profile.grade}·{profile.major}</p></div><Link href="/account">编辑</Link></div><div className="student-fields"><div><span>院系</span><b>{profile.college}</b></div><div><span>班级</span><b>{profile.className}</b></div><div><span>学号</span><b>{profile.studentId}</b></div><div><span>成长状态</span><b>{growthStats.verifiedEvidence ? `已核验 ${growthStats.verifiedEvidence} 条佐证` : "等待首条核验"}</b></div></div></article>
-          </section>
-        </div>
-      </section>
-      {toast && <div className="dash-toast"><span>✦</span>{toast}</div>}
-    </main>
-  );
+    <section className="dashboard-next-grid">
+      <article className="dashboard-next-action">
+        <span><ClockCountdown size={22} weight="duotone" /></span>
+        <div><small>下一项建议</small><h2>{growthStats.pendingTasks ? "等待审核时，整理下一项任务成果" : growthStats.verifiedTasks ? "继续完成当前学期的一项任务" : "选择当前学期的第一项任务"}</h2><p>每次只推进一个可以验收的结果，进度更清楚。</p></div>
+        <Link href="/growth-map">前往成长地图 <ArrowUpRight size={17} /></Link>
+      </article>
+      <article className="dashboard-identity-summary">
+        <div className="dashboard-avatar">{profile.name.slice(0, 1)}</div>
+        <div><small>个人成长档案</small><h2>{profile.name}</h2><p>{profile.college} · {profile.major} · {profile.grade}</p></div>
+        <span><CheckCircle size={19} weight="fill" />云端已连接</span>
+      </article>
+    </section>
+  </PortalFrame>;
 }

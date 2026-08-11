@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { calculatePortrait, scoreEvidence, type EvidenceRecord } from "../lib/growth-engine.ts";
+import { calculatePortrait, scoreEvidence, type EvidenceRecord } from "../modules/group-2-growth/client/growth-engine.ts";
 
 const now = new Date("2026-07-16T08:00:00Z").getTime();
 const base: EvidenceRecord = {

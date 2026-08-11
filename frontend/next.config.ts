@@ -1,8 +1,8 @@
 import type { NextConfig } from "next";
 
-// The web UI is static. Authenticated data operations are performed by the
-// CloudBase HTTP function, so this bundle needs no Node server or PostgreSQL
-// runtime after deployment.
+// The web UI is statically exported. Authenticated data operations are sent
+// to FastAPI through NEXT_PUBLIC_API_BASE; browser code never connects to
+// MySQL directly.
 const nextConfig: NextConfig = {
   output: "export",
   poweredByHeader: false,

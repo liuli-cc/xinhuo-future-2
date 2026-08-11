@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildDecisionPlan } from "../lib/decision-engine.ts";
-import { calculatePortrait, type EvidenceRecord } from "../lib/growth-engine.ts";
+import { buildDecisionPlan } from "../modules/group-2-growth/client/decision-engine.ts";
+import { calculatePortrait, type EvidenceRecord } from "../modules/group-2-growth/client/growth-engine.ts";
 
 const now = new Date("2026-07-25T08:00:00Z").getTime();
 const evidence: EvidenceRecord = {

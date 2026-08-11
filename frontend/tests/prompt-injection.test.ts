@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildInterviewModelMessages } from "../lib/interview-model.ts";
-import { buildInterviewPlanPrompt } from "../lib/interview-plan.ts";
+import { buildInterviewModelMessages } from "../modules/group-1-interview/client/interview-model.ts";
+import { buildInterviewPlanPrompt } from "../modules/group-1-interview/client/interview-plan.ts";
 
 test("提示词注入防护：岗位描述中的指令不进入系统提示", () => {
   const maliciousJobContext = {
@@ -73,7 +73,7 @@ test("面试计划生成提示词中简历和岗位信息不覆盖系统规则",
 });
 
 test("恶意模型名被拒绝", async () => {
-  const { sanitizeModelName } = await import("../lib/interview-model.ts");
+  const { sanitizeModelName } = await import("../modules/group-1-interview/client/interview-model.ts");
   assert.equal(sanitizeModelName("http://evil.com"), "");
   assert.equal(sanitizeModelName("deepseek://hack"), "");
   assert.equal(sanitizeModelName("valid-model-123"), "valid-model-123");

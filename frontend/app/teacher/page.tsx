@@ -1,10 +1,11 @@
 "use client";
 
-import { apiFetch } from "../../lib/bmob-api";
+import { apiFetch } from "@/modules/shared/api/bmob-api";
 
 import { useCallback, useEffect, useState } from "react";
-import AccountManagementPanel from "../components/AccountManagementPanel";
-import PortalFrame, { useStudentProfile } from "../components/PortalFrame";
+import AccountManagementPanel from "@/modules/shared/components/AccountManagementPanel";
+import PortalFrame, { useStudentProfile } from "@/modules/shared/components/PortalFrame";
+import { AnimatedBarChart, AnimatedDonutChart } from "@/modules/shared/components/DataViz";
 
 type ReviewItem = {
   id: number;
@@ -103,6 +104,29 @@ export default function TeacherPage() {
     {(error || message) && <div className={`account-feedback ${error ? "error" : ""}`}>{error || message}</div>}
     {!profile.className && <div className="admin-capacity-alert critical"><div><span>!</span><div><b>尚未分配负责班级</b><p>请联系管理员完善班级范围；未分配前不会显示任何学生账号或佐证。</p></div></div></div>}
     <AccountManagementPanel profile={profile} />
+    <section className="teacher-viz-grid">
+      <AnimatedDonutChart
+        title="待审核佐证分布"
+        description="按能力维度统计本班当前待处理佐证。"
+        centerLabel="待处理"
+        data={[...new Set(reviews.map(item => item.dimension))].map((dimension, index) => ({
+          label: dimension,
+          value: reviews.filter(item => item.dimension === dimension).length,
+          detail: `${dimension}相关佐证`,
+          color: ["var(--chart-blue-1)", "var(--chart-blue-2)", "var(--chart-blue-3)", "var(--chart-blue-4)", "var(--chart-blue-5)"][index % 5],
+        }))}
+      />
+      <AnimatedBarChart
+        title="待审核材料自评均值"
+        description="仅辅助审核，不替代教师对真实材料的核验。"
+        max={100}
+        data={[
+          { label: "相关度", value: reviews.length ? Math.round(reviews.reduce((sum, item) => sum + item.relevance, 0) / reviews.length) : 0, detail: "学生提交时填写的能力相关度" },
+          { label: "成果质量", value: reviews.length ? Math.round(reviews.reduce((sum, item) => sum + item.quality, 0) / reviews.length) : 0, detail: "学生提交时填写的成果质量" },
+          { label: "个人贡献", value: reviews.length ? Math.round(reviews.reduce((sum, item) => sum + item.contribution, 0) / reviews.length) : 0, detail: "学生提交时填写的个人贡献度" },
+        ]}
+      />
+    </section>
     <section className="portal-card admin-review-card teacher-evidence-review">
       <div className="admin-section-head"><div><span>STUDENT EVIDENCE REVIEW</span><h2>本班成长佐证审核</h2></div><b>{reviews.length} 条待处理</b></div>
       <p className="admin-review-intro">只有审核通过的真实材料才会增加学生任务进度。驳回时必须说明材料缺少什么或哪项信息不一致。</p>

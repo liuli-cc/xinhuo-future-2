@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parseJobDescription } from "../lib/job-parser.ts";
+import { parseJobDescription } from "../modules/group-3-career/client/job-parser.ts";
 
 const SAMPLE_JOB = {
   title: "后端开发实习生",

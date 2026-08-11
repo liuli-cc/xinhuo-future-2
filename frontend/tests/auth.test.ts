@@ -10,7 +10,7 @@ import {
   validPassword,
   validStudentId,
   verifyPassword,
-} from "../lib/auth.ts";
+} from "../modules/shared/auth/auth.ts";
 
 test("密码使用随机盐派生且可以正确验证", async () => {
   const password = "StrongPass2026";

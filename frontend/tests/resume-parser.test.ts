@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parseResumeText, desensitizeResume, validateResumeFile, resumeStructuredSummary } from "../lib/resume-parser.ts";
+import { parseResumeText, desensitizeResume, validateResumeFile, resumeStructuredSummary } from "../modules/group-1-interview/client/resume-parser.ts";
 
 const SAMPLE_RESUME = `张三
 

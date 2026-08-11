@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { analyzeSpeechMetrics, describeExpression, defaultSpeechMetrics } from "../lib/speech-analysis.ts";
+import { analyzeSpeechMetrics, describeExpression, defaultSpeechMetrics } from "../modules/group-1-interview/client/speech-analysis.ts";
 
 test("语速计算", () => {
   const text = "我在大学期间参与了多个项目开发，主要负责后端接口的设计和实现。在项目中使用Spring Boot框架，数据库使用MySQL。最终完成了12个接口的开发。";

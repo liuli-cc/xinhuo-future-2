@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { validateResumeFile, ALLOWED_RESUME_EXT, RESUME_MAX_MB } from "../../lib/resume-parser";
+import { validateResumeFile, ALLOWED_RESUME_EXT, RESUME_MAX_MB } from "@/modules/group-1-interview/client/resume-parser";
 
 interface ResumeUploaderProps {
   onFileSelected: (file: File) => void;
