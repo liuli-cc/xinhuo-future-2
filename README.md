@@ -24,7 +24,7 @@
 
 | 层 | 技术 | 版本 |
 |----|------|------|
-| Frontend | Next.js + React + TypeScript | 16.x / 19.x |
+| Frontend | Next.js + React + TypeScript (`frontend/`) | 16.x / 19.x |
 | Backend | FastAPI (Python) | 0.136+ |
 | Database | MySQL | 8.0+ |
 | ORM | SQLAlchemy | 2.0+ |
@@ -43,19 +43,29 @@
 
 ```
 xinhuo-future-main/
-├── app/                     # Next.js 前端 (App Router)
-│   ├── page.tsx             # 登录/注册首页
-│   ├── components/          # 共享组件
-│   ├── dashboard/           # Group2 — 仪表盘
-│   ├── growth-map/          # Group2 — 成长地图
-│   ├── portrait/            # Group2 — 能力画像
-│   ├── ai/                  # Group2 — 成长决策
-│   ├── interview/           # Group1 — AI模拟面试
-│   ├── career/              # Group3 — 职业发展
-│   ├── account/             # Shared — 个人中心
-│   ├── admin/               # Shared — 管理中心
-│   ├── teacher/             # Shared — 教师工作台
-│   └── resources/           # Shared — 资源中心
+├── frontend/                # Next.js 前端 (App Router)
+│   ├── app/                 # 页面路由
+│   │   ├── page.tsx         # 登录/注册首页
+│   │   ├── components/      # 共享组件
+│   │   ├── dashboard/       # Group2 — 仪表盘
+│   │   ├── growth-map/      # Group2 — 成长地图
+│   │   ├── portrait/        # Group2 — 能力画像
+│   │   ├── ai/              # Group2 — 成长决策
+│   │   ├── interview/       # Group1 — AI模拟面试
+│   │   ├── career/          # Group3 — 职业发展
+│   │   ├── account/         # Shared — 个人中心
+│   │   ├── admin/           # Shared — 管理中心
+│   │   ├── teacher/         # Shared — 教师工作台
+│   │   └── resources/       # Shared — 资源中心
+│   ├── lib/                 # 前端业务引擎 (TypeScript)
+│   ├── tests/               # 前端测试
+│   ├── public/              # 静态资源
+│   ├── data/                # 前端静态数据 (学校/学院)
+│   ├── scripts/             # 前端脚本
+│   ├── types/               # TypeScript 类型声明
+│   ├── package.json         # 前端依赖
+│   ├── next.config.ts       # Next.js 配置
+│   └── tsconfig.json        # TypeScript 配置
 │
 ├── backend/                 # FastAPI 后端
 │   ├── app/
@@ -72,8 +82,6 @@ xinhuo-future-main/
 │   └── .env.example         # 环境变量模板
 │
 ├── functions/xinhuo-api/    # 旧 CloudBase Node 后端 (保留)
-├── lib/                     # 前端业务引擎 (TypeScript)
-├── tests/                   # 前端测试
 ├── docs/                    # 项目文档
 └── .github/                 # CODEOWNERS
 ```
@@ -165,6 +173,7 @@ git checkout groupX-dev   # 切换到你的组分支
 ### 2. 前端
 
 ```bash
+cd frontend
 npm install
 npm run dev               # http://localhost:3000
 ```
@@ -423,5 +432,3 @@ pytest                          # 全部通过
 | 文档 | 内容 |
 |------|------|
 | [docs/CORE-V2.md](docs/CORE-V2.md) | 旧系统核心算法文档 |
-| [docs/DEVLOG-2026-07-28.md](docs/DEVLOG-2026-07-28.md) | 开发日志 |
-| [docs/ROLLBACK.md](docs/ROLLBACK.md) | 回滚指南 |

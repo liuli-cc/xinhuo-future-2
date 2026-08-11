@@ -4,12 +4,12 @@ import fs from "node:fs";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-const AdmZip = require("../functions/xinhuo-api/node_modules/adm-zip");
+const AdmZip = require("../../functions/xinhuo-api/node_modules/adm-zip");
 const {
   MAX_RESUME_BYTES,
   ResumeDocumentError,
   parseResumeDocument,
-} = require("../functions/xinhuo-api/document-parser.js");
+} = require("../../functions/xinhuo-api/document-parser.js");
 
 function toPayload(fileName, buffer) {
   return {
@@ -45,7 +45,7 @@ test("parses DOCX main document XML", async () => {
 
 test("extracts text from a PDF without native runtime dependencies", async () => {
   const buffer = fs.readFileSync(
-    new URL("../functions/xinhuo-api/node_modules/pdf-parse/test/data/04-valid.pdf", import.meta.url),
+    new URL("../../functions/xinhuo-api/node_modules/pdf-parse/test/data/04-valid.pdf", import.meta.url),
   );
   const result = await parseResumeDocument(toPayload("resume.pdf", buffer));
   assert.ok(result.text.length > 20);

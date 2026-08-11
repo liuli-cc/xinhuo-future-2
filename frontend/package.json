@@ -12,7 +12,7 @@
     "start": "next start",
     "test:unit": "node --experimental-strip-types --test tests/*.test.ts tests/*.test.mjs",
     "test": "npm run build && npm run test:unit && node --test tests/rendered-html.test.mjs",
-    "lint": "eslint . --ignore-pattern .next --ignore-pattern dist --ignore-pattern functions/xinhuo-api",
+    "lint": "eslint . --ignore-pattern .next --ignore-pattern dist",
     "db:generate": "drizzle-kit generate"
   },
   "dependencies": {

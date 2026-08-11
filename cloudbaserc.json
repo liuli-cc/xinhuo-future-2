@@ -7,7 +7,7 @@
     "framework": "static",
     "installCommand": "",
     "buildCommand": "",
-    "outputDir": "./out",
+    "outputDir": "./frontend/out",
     "deployPath": "/"
   }
 }

@@ -139,15 +139,15 @@ backend/app/tests/                 → SHARED (各组在各自目录下)
 docs/                              → SHARED
 .github/                           → SHARED
 
-app/page.tsx                       → SHARED
-app/account/                       → SHARED
-app/admin/                         → SHARED
-app/teacher/                       → SHARED
-app/resources/                     → SHARED
-app/dashboard/                     → GROUP2
-app/growth-map/                    → GROUP2
-app/portrait/                      → GROUP2
-app/ai/                            → GROUP2
-app/interview/                     → GROUP1
-app/career/                        → GROUP3
+frontend/app/page.tsx              → SHARED
+frontend/app/account/              → SHARED
+frontend/app/admin/                → SHARED
+frontend/app/teacher/              → SHARED
+frontend/app/resources/            → SHARED
+frontend/app/dashboard/            → GROUP2
+frontend/app/growth-map/           → GROUP2
+frontend/app/portrait/             → GROUP2
+frontend/app/ai/                   → GROUP2
+frontend/app/interview/            → GROUP1
+frontend/app/career/               → GROUP3
 ```

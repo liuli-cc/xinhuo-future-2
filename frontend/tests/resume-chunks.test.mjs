@@ -7,7 +7,7 @@ const {
   ResumeChunkError,
   validateResumeChunk,
   assembleResumeChunks,
-} = require("../functions/xinhuo-api/resume-chunks.js");
+} = require("../../functions/xinhuo-api/resume-chunks.js");
 
 const uploadId = "123e4567-e89b-12d3-a456-426614174000";
 

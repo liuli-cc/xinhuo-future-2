@@ -4,7 +4,7 @@ import { createRequire } from "node:module";
 import fs from "node:fs";
 
 const require = createRequire(import.meta.url);
-const { parseResumeStructure } = require("../functions/xinhuo-api/resume-structure.js");
+const { parseResumeStructure } = require("../../functions/xinhuo-api/resume-structure.js");
 
 test("结构化解析不会把后续栏目串入当前字段", () => {
   const text = fs.readFileSync(new URL("./fixtures/e2e-resume.txt", import.meta.url), "utf8");

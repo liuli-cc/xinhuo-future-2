@@ -25,23 +25,23 @@ backend/app/modules/files/         @xinhuo-core
 backend/app/modules/imports/       @xinhuo-core
 
 # Shared — Frontend
-app/page.tsx                       @xinhuo-core
-app/account/                       @xinhuo-core
-app/admin/                         @xinhuo-core
-app/teacher/                       @xinhuo-core
-app/resources/                     @xinhuo-core
-app/layout.tsx                     @xinhuo-core
-app/components/PortalFrame.tsx     @xinhuo-core
-app/components/AccountManagementPanel.tsx @xinhuo-core
-lib/auth.ts                        @xinhuo-core
-lib/bmob-api.ts                    @xinhuo-core
+frontend/app/page.tsx                       @xinhuo-core
+frontend/app/account/                       @xinhuo-core
+frontend/app/admin/                         @xinhuo-core
+frontend/app/teacher/                       @xinhuo-core
+frontend/app/resources/                     @xinhuo-core
+frontend/app/layout.tsx                     @xinhuo-core
+frontend/app/components/PortalFrame.tsx     @xinhuo-core
+frontend/app/components/AccountManagementPanel.tsx @xinhuo-core
+frontend/lib/auth.ts                        @xinhuo-core
+frontend/lib/bmob-api.ts                    @xinhuo-core
 
 # Shared — Docs & Config
 docs/                              @xinhuo-core
 .github/                           @xinhuo-core
-package.json                       @xinhuo-core
-tsconfig.json                      @xinhuo-core
-next.config.ts                     @xinhuo-core
+frontend/package.json                       @xinhuo-core
+frontend/tsconfig.json                      @xinhuo-core
+frontend/next.config.ts                     @xinhuo-core
 
 # ═══════════════════════════════════════════════════════════
 # GROUP1 — AI简历 + AI模拟面试
@@ -54,21 +54,21 @@ backend/app/integrations/tts/      @xinhuo-group1
 backend/app/integrations/ocr/      @xinhuo-group1
 
 # Group1 — Frontend
-app/interview/                     @xinhuo-group1
-app/components/VirtualInterviewer.tsx @xinhuo-group1
-app/components/ContinuousSpeechRecognition.tsx @xinhuo-group1
-app/components/ResumeUploader.tsx   @xinhuo-group1
-lib/interview-engine.ts            @xinhuo-group1
-lib/interview-model.ts             @xinhuo-group1
-lib/interview-plan.ts              @xinhuo-group1
-lib/interview-report-download.ts   @xinhuo-group1
-lib/interview-report-export.ts     @xinhuo-group1
-lib/scoring-v2.ts                  @xinhuo-group1
-lib/speech-analysis.ts             @xinhuo-group1
-lib/wav-audio.ts                   @xinhuo-group1
-lib/resume-parser.ts               @xinhuo-group1
-lib/resume-upload.ts               @xinhuo-group1
-lib/client-resume-ocr.ts           @xinhuo-group1
+frontend/app/interview/                     @xinhuo-group1
+frontend/app/components/VirtualInterviewer.tsx @xinhuo-group1
+frontend/app/components/ContinuousSpeechRecognition.tsx @xinhuo-group1
+frontend/app/components/ResumeUploader.tsx   @xinhuo-group1
+frontend/lib/interview-engine.ts            @xinhuo-group1
+frontend/lib/interview-model.ts             @xinhuo-group1
+frontend/lib/interview-plan.ts              @xinhuo-group1
+frontend/lib/interview-report-download.ts   @xinhuo-group1
+frontend/lib/interview-report-export.ts     @xinhuo-group1
+frontend/lib/scoring-v2.ts                  @xinhuo-group1
+frontend/lib/speech-analysis.ts             @xinhuo-group1
+frontend/lib/wav-audio.ts                   @xinhuo-group1
+frontend/lib/resume-parser.ts               @xinhuo-group1
+frontend/lib/resume-upload.ts               @xinhuo-group1
+frontend/lib/client-resume-ocr.ts           @xinhuo-group1
 
 # ═══════════════════════════════════════════════════════════
 # GROUP2 — 任务匹配 + 榜样激励
@@ -77,12 +77,12 @@ backend/app/modules/evidence/      @xinhuo-group2
 backend/app/modules/growth/        @xinhuo-group2
 
 # Group2 — Frontend
-app/dashboard/                     @xinhuo-group2
-app/growth-map/                    @xinhuo-group2
-app/portrait/                      @xinhuo-group2
-app/ai/                            @xinhuo-group2
-lib/growth-engine.ts               @xinhuo-group2
-lib/decision-engine.ts             @xinhuo-group2
+frontend/app/dashboard/                     @xinhuo-group2
+frontend/app/growth-map/                    @xinhuo-group2
+frontend/app/portrait/                      @xinhuo-group2
+frontend/app/ai/                            @xinhuo-group2
+frontend/lib/growth-engine.ts               @xinhuo-group2
+frontend/lib/decision-engine.ts             @xinhuo-group2
 
 # ═══════════════════════════════════════════════════════════
 # GROUP3 — 智能岗位匹配
@@ -91,12 +91,12 @@ backend/app/modules/employment/    @xinhuo-group3
 backend/app/modules/career/        @xinhuo-group3
 
 # Group3 — Frontend
-app/career/                        @xinhuo-group3
-app/components/CareerWorkbench.tsx @xinhuo-group3
-app/components/CareerJobDiscovery.tsx @xinhuo-group3
-lib/career-engine.ts               @xinhuo-group3
-lib/job-parser.ts                  @xinhuo-group3
-lib/job-import-parser.ts           @xinhuo-group3
+frontend/app/career/                        @xinhuo-group3
+frontend/app/components/CareerWorkbench.tsx @xinhuo-group3
+frontend/app/components/CareerJobDiscovery.tsx @xinhuo-group3
+frontend/lib/career-engine.ts               @xinhuo-group3
+frontend/lib/job-parser.ts                  @xinhuo-group3
+frontend/lib/job-import-parser.ts           @xinhuo-group3
 
 # ═══════════════════════════════════════════════════════════
 # Legacy — 旧后端 (保持可运行，原则上不修改)
