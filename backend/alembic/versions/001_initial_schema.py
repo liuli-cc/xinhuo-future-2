@@ -152,7 +152,10 @@ def upgrade() -> None:
         sa.Column("class_name", sa.String(80), nullable=False, server_default=""),
         sa.Column("grade", sa.String(20), nullable=False, server_default=""),
         sa.Column("phone", sa.String(30), nullable=False, server_default=""),
-        sa.Column("bio", sa.Text(), nullable=False, server_default=""),
+        # MySQL rejects defaults on TEXT/BLOB/JSON columns. Application writes
+        # the empty-string default explicitly, so the database column only
+        # needs to remain non-nullable here.
+        sa.Column("bio", sa.Text(), nullable=False),
         sa.Column("target_role", sa.String(80), nullable=False, server_default="探索方向"),
         sa.Column("development_track", sa.String(80), nullable=False, server_default="exploration"),
         sa.Column("interests", sa.JSON(), nullable=False),
