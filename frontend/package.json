@@ -39,7 +39,7 @@
     "eslint-config-next": "16.2.12",
     "react-server-dom-webpack": "19.2.8",
     "tailwindcss": "4.2.1",
-    "typescript": "5.9.3"
+    "typescript": "7.0.2"
   },
   "overrides": {
     "brace-expansion": "1.1.18",
