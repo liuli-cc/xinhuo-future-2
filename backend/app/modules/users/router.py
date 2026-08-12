@@ -17,9 +17,12 @@ router = APIRouter(prefix="/users", tags=["users"])
 @router.get("/{user_id}")
 async def get_user(
     user_id: int,
+    current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ):
     """Get user public profile by ID."""
+    if current_user["id"] != user_id and current_user["role"] not in ("school_admin", "admin"):
+        raise ForbiddenError("无权查看该用户档案")
     service = UserService(db)
     return {"user": await service.get_public_profile(user_id)}
 

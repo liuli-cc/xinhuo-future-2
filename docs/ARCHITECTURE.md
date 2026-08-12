@@ -6,21 +6,20 @@
 ┌─────────────────────────────────────────────────────────┐
 │                    浏览器 (Browser)                       │
 │              Next.js Static Export (SPA)                  │
-│          localStorage: session token                     │
-│          Session: Bearer token OR HttpOnly Cookie        │
+│   Development: sessionStorage Bearer token (localhost)   │
+│   Production: HttpOnly Secure Cookie only                │
 └─────────────────┬───────────────────────────────────────┘
                   │ HTTPS
                   ▼
 ┌─────────────────────────────────────────────────────────┐
-│              腾讯云 CloudBase 静态托管                     │
-│         https://xinhuo-*.tcloudbaseapp.com               │
+│                Static Web Hosting                         │
+│      (provider selected during deployment phase)          │
 └─────────────────────────────────────────────────────────┘
                   │
                   │ API calls (NEXT_PUBLIC_API_BASE)
                   ▼
 ┌─────────────────────────────────────────────────────────┐
-│              FastAPI Backend (新)                         │
-│              OR  CloudBase HTTP函数 (旧)                  │
+│                   FastAPI Backend                         │
 │                                                         │
 │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐  │
 │  │  Auth    │ │  Users   │ │Reference │ │   Org    │  │
@@ -81,7 +80,7 @@
 | Validation | Pydantic | 2.10 |
 | Testing | pytest | 8.3 |
 | Deployment | Docker | — |
-| File Storage | 腾讯云 COS | — |
+| File Storage | 本地开发目录 / 腾讯云 COS 正式环境 | — |
 
 ## 禁止引入
 
@@ -124,12 +123,12 @@
                                      Session 过期 (7天)
 ```
 
-兼容旧系统 PBKDF2-SHA256 密码散列，支持 Session Token (Bearer/Cookie) 双重认证。
+兼容旧系统 PBKDF2-SHA256 密码散列。localhost 开发可返回 Bearer token；生产启动检查要求 `RETURN_SESSION_TOKEN=false`，仅使用 HttpOnly Secure Cookie。
 
 ## 文件存储
 
 ```
-浏览器 → 文件上传API → COS → object_key → MySQL files 表
+浏览器 → 文件上传 API → 本地目录(开发)/COS(正式) → object_key → MySQL files 表
 ```
 
 禁止: File → Base64 → MySQL (旧系统的过渡方式)

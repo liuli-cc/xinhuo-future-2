@@ -108,5 +108,5 @@ def _get_college(user: dict | Any) -> str:
 
 def _get_class_name(user: dict | Any) -> str:
     if isinstance(user, dict):
-        return user.get("className", "")
-    return getattr(user, "className", "")
+        return user.get("class_name", user.get("className", ""))
+    return getattr(user, "class_name", getattr(user, "className", ""))

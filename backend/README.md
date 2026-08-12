@@ -1,100 +1,60 @@
-# 薪火未来 — FastAPI Backend
+# 薪火未来 v0.5 后端
 
-FastAPI backend for the Xinhuo Future student growth & career decision platform.
+FastAPI + MySQL 模块化单体，承载账号、成长任务与佐证、审核、职业匹配、模拟面试、文件、隐私权利和平台治理。旧 CloudBase 目录仅作为迁移资料，不参与当前运行。
 
-## Quick Start
+## Docker 启动
 
 ```bash
-# Start MySQL + Backend
-docker compose up -d
-
-# Run migrations
-docker compose exec backend alembic upgrade head
-
-# Import reference data
-docker compose exec backend python scripts/import_reference_data.py --type all
-
-# API docs at http://localhost:8000/docs
-# Health check at http://localhost:8000/health
+cp .env.example .env
+docker compose up --build -d
+docker compose exec backend alembic current
+curl http://localhost:8000/health/ready
 ```
 
-## Local Development (without Docker)
+首次初始化学校管理员：
 
 ```bash
-# 1. Start MySQL
-# 2. Create .env from .env.example
-cp .env.example .env
-# Edit .env with your MySQL credentials
+docker compose exec backend python scripts/bootstrap_admin.py \
+  --student-id 你的工号 --name 你的姓名
+```
 
-# 3. Install dependencies
+脚本会交互式读取强密码，不会把密码写入终端历史。开发环境 API 文档位于 `http://localhost:8000/docs`；正式环境会关闭 Swagger、ReDoc 与 OpenAPI 路由。
+
+## 不使用 Docker
+
+需要 Python 3.12+ 和 MySQL 8：
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
-pip install aiomysql
-
-# 4. Run migrations
+cp .env.example .env
 alembic upgrade head
-
-# 5. Start server
 uvicorn app.main:app --reload --port 8000
 ```
 
-## Project Structure
+## 主要模块
 
-```
-backend/
-├── app/
-│   ├── main.py              # FastAPI entry point
-│   ├── core/                 # Config, security, exceptions, logging
-│   ├── db/                   # SQLAlchemy base, session
-│   ├── modules/              # Business modules
-│   │   ├── auth/             # Authentication
-│   │   ├── users/            # User & student profiles
-│   │   ├── reference/        # Standard dictionaries
-│   │   ├── organization/     # Universities, colleges, majors
-│   │   ├── admission/        # Admission records (Phase 2)
-│   │   ├── employment/       # Employment records (Phase 2)
-│   │   ├── evidence/         # Growth evidence (Phase 2)
-│   │   ├── growth/           # Growth tasks (Phase 2)
-│   │   ├── career/           # Career jobs & matching (Phase 2)
-│   │   ├── interview/        # Mock interviews (Phase 2)
-│   │   ├── admin/            # Admin & audit (Phase 2)
-│   │   ├── files/            # Unified file storage
-│   │   └── imports/          # Data import staging
-│   ├── integrations/         # COS, LLM, ASR, TTS, OCR
-│   └── tests/                # pytest tests
-├── alembic/                  # Database migrations
-├── scripts/                  # Import & utility scripts
-├── Dockerfile
-├── docker-compose.yml
-├── .env.example
-└── README.md
-```
+- `app/modules/auth`：注册、审核状态、登录锁定、会话与找回。
+- `app/modules/growth`、`evidence`：成长任务、佐证、教师审核和画像。
+- `app/modules/career`、`interview`：岗位快照、匹配、投递、面试与报告。
+- `app/modules/files`：本地/COS 私有文件存储和访问控制。
+- `app/modules/admin`：分级权限、审计、运营概览和注销清理。
+- `app/modules/users/account_router.py`：资料、密码、会话、导出与注销。
+- `app/integrations`：对象存储和服务端模型网关。
+- `alembic/versions`：可追踪的数据库迁移。
 
-## API Documentation
-
-- Swagger UI: http://localhost:8000/docs
-- ReDoc: http://localhost:8000/redoc
-- OpenAPI JSON: http://localhost:8000/openapi.json
-
-## Environment Variables
-
-See `.env.example` for all available variables.
-
-Key variables:
-- `MYSQL_HOST` / `MYSQL_PORT` / `MYSQL_DATABASE` / `MYSQL_USER` / `MYSQL_PASSWORD`
-- `COS_SECRET_ID` / `COS_SECRET_KEY` / `COS_BUCKET` / `COS_REGION`
-- `SECRET_KEY`
-- `WEB_ORIGIN`
-
-## Testing
+## 测试与运维命令
 
 ```bash
-# Run all tests
-pytest
-
-# Unit tests only
-pytest -m unit
-
-# With coverage
-pip install pytest-cov
-pytest --cov=app --cov-report=html
+pytest -q
+alembic upgrade head
+python scripts/migrate_legacy_export.py --input legacy.json       # 仅预检
+python scripts/run_retention.py                                  # 仅预检
 ```
+
+会修改数据的迁移和保留策略命令必须显式增加 `--apply`。备份、恢复及旧数据迁移步骤分别见根目录的 `docs/BACKUP-RESTORE.md` 与 `docs/DATA-MIGRATION-RUNBOOK.md`。
+
+## 正式环境边界
+
+正式环境启动时会强制检查随机 `SECRET_KEY`、HTTPS 来源、安全 Cookie、仅 Cookie 会话、COS 持久化、监控令牌和非默认数据库口令。完整变量见 `.env.example`，上线前逐项执行 `docs/PRODUCTION-CHECKLIST.md`。

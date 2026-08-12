@@ -17,7 +17,9 @@ from ...core.exceptions import (
     AccountRejectedError,
     AccountSuspendedError,
     AuthError,
+    ConflictError,
 )
+from ...core.config import get_settings
 from ...core.security import hash_token
 from ...db.session import get_db
 from ..users.repository import UserRepository
@@ -25,7 +27,7 @@ from ..users.service import UserService
 
 logger = logging.getLogger("xinhuo.auth")
 
-SESSION_COOKIE = "xinhuo_session"
+SESSION_COOKIE = get_settings().SESSION_COOKIE_NAME
 
 
 async def get_current_user(
@@ -42,13 +44,16 @@ async def get_current_user(
     token = None
     if authorization and authorization.startswith("Bearer "):
         token = authorization[7:].strip()
+        request.state.auth_mode = "bearer"
     if not token and xinhuo_session:
         token = xinhuo_session
+        request.state.auth_mode = "cookie"
 
     if not token:
         raise AuthError("请先登录")
 
     session_id = hash_token(token)
+    request.state.session_id = session_id
     repo = UserRepository(db)
     session = await repo.get_session(session_id)
 
@@ -81,6 +86,16 @@ async def get_current_user(
         note = user.get("account_review_note", "")
         raise AccountSuspendedError(f"账号已被停用{f'：{note}' if note else ''}，请联系平台管理员")
 
+    if user.get("force_password_change"):
+        allowed = {
+            "/api/v1/auth/me",
+            "/api/v1/auth/logout",
+            "/api/v1/account",
+            "/api/v1/account/sessions",
+        }
+        if request.url.path not in allowed:
+            raise ConflictError("首次登录必须先修改临时密码")
+
     # Touch last_seen
     await repo.touch_session(session_id, now_ms)
 
@@ -99,5 +114,5 @@ async def get_optional_user(
     """Like get_current_user but returns None instead of raising AuthError."""
     try:
         return await get_current_user(request, authorization, xinhuo_session, db)
-    except AuthError:
+    except (AuthError, AccountPendingError, AccountRejectedError, AccountSuspendedError):
         return None

@@ -7,6 +7,7 @@ import { nameIssue, passwordIssue, staffIdIssue, studentIdIssue, validEmail } fr
 import { imnuCollegeNames, isOfficialImnuCollege } from "../data/imnu-colleges";
 import { useRouteMotion } from "@/modules/shared/motion/RouteMotionProvider";
 import { ArrowLeft, At, Buildings, FireSimple, IdentificationCard, LockKey, ShieldCheck, Sparkle, Student, User, UsersThree } from "@phosphor-icons/react";
+import Link from "next/link";
 
 type Registration = {
   accountType: "student" | "teacher";
@@ -106,7 +107,10 @@ export default function LoginPage() {
     setError("");
     setNotice("");
     try {
-      const response = await apiFetch("/api/auth/register", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(registration) });
+      const response = await apiFetch("/api/auth/register", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
+        ...registration,
+        consent: registration.consent,
+      }) });
       const body = await response.json() as { pending?: boolean; message?: string; error?: string };
       if (!response.ok || !body.pending) throw new Error(body.error || "注册失败");
       setRegistration(emptyRegistration);
@@ -189,7 +193,7 @@ export default function LoginPage() {
             <span className={/\d/.test(registration.password) ? "met" : ""}>含数字</span>
           </div>
           <div className={error ? "form-error show" : "form-error"}><span>!</span>{error || "注册信息尚未填写完整"}</div>
-          <label className="privacy-consent"><input type="checkbox" checked={registration.consent} onChange={event => setRegistration(current => ({ ...current, consent: event.target.checked }))} /><span>我已阅读并同意：身份、班级、成长数据和审核记录将由平台后台安全保存；平台按账号角色和班级范围控制访问。</span></label>
+          <label className="privacy-consent"><input type="checkbox" checked={registration.consent} onChange={event => setRegistration(current => ({ ...current, consent: event.target.checked }))} /><span>我已阅读并同意<Link href="/terms" target="_blank">服务协议</Link>与<Link href="/privacy" target="_blank">隐私政策</Link>；身份、班级、成长数据和审核记录将按角色与班级范围保存和访问。</span></label>
           <button className={saving ? "submit-profile saving" : "submit-profile"} type="submit" disabled={saving || !registration.consent}>{saving ? "正在提交审核…" : <>提交注册审核 <span>→</span></>}</button>
           <p className="agreement">{registration.accountType === "teacher" ? "教师账号由管理员审核通过后才能登录" : "学生账号由本班教师或管理员审核通过后才能登录，成长进度从 0 开始"}</p>
         </form>}

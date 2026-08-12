@@ -1,0 +1,62 @@
+"""Read-only platform catalog and privacy metadata routes."""
+
+from __future__ import annotations
+
+import json
+from functools import lru_cache
+from pathlib import Path
+
+from fastapi import APIRouter, Depends
+
+from ..core.config import get_settings
+from ..core.exceptions import NotFoundError
+from .auth.dependency import CurrentUser
+
+router = APIRouter(tags=["platform"])
+
+
+@lru_cache(maxsize=1)
+def _mentor_snapshot() -> dict:
+    project_root = Path(__file__).resolve().parents[3]
+    path = project_root / "frontend" / "data" / "imnu-faculty-snapshot.json"
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+@router.get("/mentors")
+async def mentors(college: str = "人工智能学院", current_user: CurrentUser = None):
+    snapshot = _mentor_snapshot()
+    summaries = []
+    selected = None
+    for item in snapshot.get("colleges", []):
+        faculty = item.get("faculty", [])
+        summary = {
+            "id": item["id"], "school": snapshot.get("school", "内蒙古师范大学"),
+            "college": item["name"], "officialUrl": item.get("officialUrl", ""),
+            "sourceUrl": item.get("facultySourceUrl", ""), "mentorSourceUrl": item.get("mentorSourceUrl", ""),
+            "sourceStatus": item.get("sourceStatus", "no_public_directory"),
+            "sourceNote": item.get("sourceNote", ""), "updatedAt": snapshot.get("updatedAt", ""),
+            "total": len(faculty),
+            "doctoralCount": len([person for person in faculty if person.get("mentorLevel") == "博士研究生导师"]),
+            "masterCount": len([person for person in faculty if person.get("mentorLevel") == "硕士研究生导师"]),
+        }
+        summaries.append(summary)
+        if item["name"] == college:
+            selected = {**summary, "faculty": faculty}
+    if selected is None and summaries:
+        selected_item = snapshot["colleges"][0]
+        selected = {**summaries[0], "faculty": selected_item.get("faculty", [])}
+    if selected is None:
+        raise NotFoundError("导师目录为空")
+    return {"colleges": summaries, "directory": selected}
+
+
+@router.get("/platform/privacy")
+async def privacy_metadata():
+    settings = get_settings()
+    return {
+        "privacyVersion": settings.PRIVACY_VERSION,
+        "termsVersion": settings.TERMS_VERSION,
+        "deletionGraceDays": settings.ACCOUNT_DELETION_GRACE_DAYS,
+        "llmClientKeysAllowed": settings.ALLOW_CLIENT_LLM_KEYS,
+        "fileStorage": settings.FILE_STORAGE_BACKEND,
+    }

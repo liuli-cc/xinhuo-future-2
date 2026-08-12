@@ -12,7 +12,6 @@ import hashlib
 import hmac
 import os
 import secrets
-from datetime import datetime, timezone
 
 from .config import get_settings
 
@@ -89,6 +88,19 @@ def _constant_time_equal(a: str, b: str) -> bool:
 def generate_session_token() -> str:
     """Generate a new session token."""
     return random_token(32)
+
+
+def validate_password_strength(password: str) -> str | None:
+    """Return a user-facing validation message, or ``None`` when strong enough."""
+    if not 10 <= len(password) <= 128:
+        return "密码长度必须为 10-128 位"
+    if not any(char.islower() for char in password):
+        return "密码必须包含小写字母"
+    if not any(char.isupper() for char in password):
+        return "密码必须包含大写字母"
+    if not any(char.isdigit() for char in password):
+        return "密码必须包含数字"
+    return None
 
 
 def mask_sensitive(value: str | None, visible: int = 3) -> str:

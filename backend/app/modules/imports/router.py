@@ -5,7 +5,8 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...core.exceptions import NotFoundError
+from ...core.exceptions import ForbiddenError, NotFoundError
+from ...core.permissions import can_manage_system
 from ...db.session import get_db
 from ..auth.dependency import CurrentUser
 from .repository import ImportRepository
@@ -13,20 +14,28 @@ from .repository import ImportRepository
 router = APIRouter(prefix="/imports", tags=["imports"])
 
 
+def _require_import_access(user: dict) -> None:
+    if not can_manage_system(user):
+        raise ForbiddenError("只有学校或平台管理员可以查看导入原始数据")
+
+
 @router.get("/batches")
 async def list_import_batches(
     source_type: str | None = Query(None, description="来源类型"),
     limit: int = Query(50, ge=1, le=200),
+    current_user: CurrentUser = None,
     db: AsyncSession = Depends(get_db),
 ):
     """List recent import batches."""
+    _require_import_access(current_user)
     repo = ImportRepository(db)
     return {"data": await repo.list_batches(source_type=source_type, limit=limit)}
 
 
 @router.get("/batches/{batch_id}")
-async def get_import_batch(batch_id: int, db: AsyncSession = Depends(get_db)):
+async def get_import_batch(batch_id: int, current_user: CurrentUser, db: AsyncSession = Depends(get_db)):
     """Get import batch details."""
+    _require_import_access(current_user)
     repo = ImportRepository(db)
     batch = await repo.get_batch(batch_id)
     if not batch:
@@ -39,9 +48,11 @@ async def list_import_rows(
     batch_id: int,
     status: str | None = Query(None, description="标准化状态过滤"),
     limit: int = Query(500, ge=1, le=2000),
+    current_user: CurrentUser = None,
     db: AsyncSession = Depends(get_db),
 ):
     """List rows in an import batch."""
+    _require_import_access(current_user)
     repo = ImportRepository(db)
     batch = await repo.get_batch(batch_id)
     if not batch:

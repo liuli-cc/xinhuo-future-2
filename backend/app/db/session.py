@@ -27,14 +27,10 @@ def get_engine():
     if _engine is None:
         settings = get_settings()
         async_url = _make_async_url(settings.database_url)
-        _engine = create_async_engine(
-            async_url,
-            echo=settings.DEBUG,
-            pool_size=10,
-            max_overflow=20,
-            pool_pre_ping=True,
-            pool_recycle=3600,
-        )
+        options = {"echo": settings.DEBUG, "pool_pre_ping": True}
+        if not async_url.startswith("sqlite"):
+            options.update(pool_size=10, max_overflow=20, pool_recycle=3600)
+        _engine = create_async_engine(async_url, **options)
     return _engine
 
 
@@ -61,3 +57,12 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
             raise
         finally:
             await session.close()
+
+
+async def reset_database_state() -> None:
+    """Dispose cached engine/session state (used by tests and maintenance tools)."""
+    global _engine, _session_factory
+    if _engine is not None:
+        await _engine.dispose()
+    _engine = None
+    _session_factory = None

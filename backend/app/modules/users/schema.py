@@ -25,17 +25,17 @@ class UserPublicProfile(BaseModel):
 
 class ProfileUpdateRequest(BaseModel):
     action: str = Field(default="profile")
-    name: str | None = None
-    email: str | None = None
-    college: str | None = None
-    major: str | None = None
-    className: str | None = None
-    grade: str | None = None
-    phone: str | None = None
-    bio: str | None = None
-    targetRole: str | None = None
-    developmentTrack: str | None = None
-    interests: list | None = None
+    name: str | None = Field(default=None, min_length=2, max_length=30)
+    email: str | None = Field(default=None, max_length=120)
+    college: str | None = Field(default=None, max_length=80)
+    major: str | None = Field(default=None, max_length=80)
+    className: str | None = Field(default=None, max_length=80)
+    grade: str | None = Field(default=None, max_length=20)
+    phone: str | None = Field(default=None, max_length=30)
+    bio: str | None = Field(default=None, max_length=2000)
+    targetRole: str | None = Field(default=None, max_length=80)
+    developmentTrack: str | None = Field(default=None, max_length=80)
+    interests: list[str] | None = Field(default=None, max_length=8)
 
 
 class PasswordChangeRequest(BaseModel):

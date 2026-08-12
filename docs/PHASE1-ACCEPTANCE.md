@@ -340,7 +340,7 @@ functions/xinhuo-api/server.js  存在
 | Python 环境 | ✅ 核心依赖通过 |
 | FastAPI | ✅ 启动正常，24端点注册，health/docs 可用 |
 | 数据库 | ⚠️ 模型定义完整，等待 Docker/MySQL 环境验证 |
-| 旧系统兼容 | ✅ Next.js + CloudBase 后端完整保留 |
+| 旧系统边界 | ✅ 旧 CloudBase 代码仅作迁移对照，v0.5 运行链路统一使用 FastAPI/MySQL |
 | 安全 | ✅ 无硬编码敏感信息 |
 
 ---
