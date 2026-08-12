@@ -33,5 +33,5 @@ httpx==0.28.1
 structlog==24.4.0
 
 # HTTP
-requests==2.33.0
+requests==2.34.2
 aiohttp==3.14.3
