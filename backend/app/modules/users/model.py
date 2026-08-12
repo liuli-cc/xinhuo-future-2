@@ -81,6 +81,12 @@ class User(Base, SoftDeleteMixin):
 
     # ── Consent / Timestamps ────────────────────────────────
     consent_at: Mapped[int] = mapped_column(Integer, nullable=True, comment="同意协议时间戳")
+    consent_version: Mapped[str | None] = mapped_column(
+        String(30), nullable=True, comment="同意的服务协议版本"
+    )
+    privacy_version: Mapped[str | None] = mapped_column(
+        String(30), nullable=True, comment="同意的隐私政策版本"
+    )
     last_login_at: Mapped[int | None] = mapped_column(Integer, nullable=True, comment="最后登录时间戳")
 
     # Relationships

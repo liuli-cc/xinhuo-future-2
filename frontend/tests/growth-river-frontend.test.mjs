@@ -18,7 +18,7 @@ test("growth-river frontend keeps its modular shell and explicit FastAPI boundar
 
   assert.match(text("app/layout.tsx"), /RouteMotionProvider/);
   assert.match(text("modules/group-2-growth/components/FourYearJourney.tsx"), /journey-river-progress/);
-  assert.match(text("modules/shared/api/bmob-api.ts"), /\/api\/v1\/auth/);
-  assert.match(text("modules/shared/api/bmob-api.ts"), /backend_module_not_migrated/);
+  assert.match(text("modules/shared/api/bmob-api.ts"), /`\/api\/v1\$\{pathname\.slice\(4\)\}`/);
+  assert.doesNotMatch(text("modules/shared/api/bmob-api.ts"), /backend_module_not_migrated/);
   assert.doesNotMatch(text("modules/shared/api/bmob-api.ts"), /CloudBase HTTP function/);
 });

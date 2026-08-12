@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import time
+from datetime import datetime, timezone
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -35,7 +35,7 @@ class UserRepository:
         return self._to_dict(user)
 
     async def update_user(self, user_id: int, data: dict) -> dict | None:
-        data["updated_at"] = int(time.time() * 1000)
+        data["updated_at"] = datetime.now(timezone.utc)
         stmt = update(User).where(User.id == user_id).values(**data)
         await self.db.execute(stmt)
         await self.db.flush()
@@ -72,10 +72,25 @@ class UserRepository:
         await self.db.execute(stmt)
 
     async def revoke_session(self, session_id: str) -> None:
+        import time
         now_ms = int(time.time() * 1000)
         stmt = (
             update(UserSession)
             .where(UserSession.id == session_id)
+            .values(revoked_at=now_ms)
+        )
+        await self.db.execute(stmt)
+
+    async def revoke_other_sessions(self, user_id: int, current_session_id: str) -> None:
+        import time
+        now_ms = int(time.time() * 1000)
+        stmt = (
+            update(UserSession)
+            .where(
+                UserSession.user_id == user_id,
+                UserSession.id != current_session_id,
+                UserSession.revoked_at.is_(None),
+            )
             .values(revoked_at=now_ms)
         )
         await self.db.execute(stmt)
@@ -118,6 +133,8 @@ class UserRepository:
             "development_track": user.development_track,
             "interests": user.interests or [],
             "consent_at": user.consent_at,
+            "consent_version": user.consent_version,
+            "privacy_version": user.privacy_version,
             "last_login_at": user.last_login_at,
             "created_at": user.created_at,
             "updated_at": user.updated_at,

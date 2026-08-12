@@ -26,6 +26,7 @@ export default function AccountPage() {
   const [saving, setSaving] = useState(false);
   const [sessions, setSessions] = useState<DeviceSession[]>([]);
   const [deletion, setDeletion] = useState<DeletionRequest | null>(null);
+  const [deletionPassword, setDeletionPassword] = useState("");
 
   useEffect(() => setForm(profile), [profile]);
   useEffect(() => setRequired(new URLSearchParams(window.location.search).get("required") === "1"), []);
@@ -74,10 +75,14 @@ export default function AccountPage() {
 
   const changeDeletion = async (cancel = false) => {
     if (!cancel && !confirm("确认申请注销账号吗？系统会保留 7 天撤销期，期间不会立即删除。")) return;
-    const response = await apiFetch("/api/account/deletion", { method: cancel ? "DELETE" : "POST" });
+    if (!cancel && !deletionPassword) return setError("请输入当前密码确认注销申请");
+    const response = await apiFetch("/api/account/deletion", cancel ? { method: "DELETE" } : {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ currentPassword: deletionPassword }),
+    });
     const body = await response.json() as { request?: DeletionRequest; error?: string };
     if (!response.ok) return setError(body.error || "注销申请处理失败");
     setDeletion(body.request ?? null);
+    setDeletionPassword("");
     setMessage(cancel ? "注销申请已撤销" : "注销申请已提交，7 天内可以撤销");
   };
 
@@ -155,7 +160,7 @@ export default function AccountPage() {
         <div className="account-head"><div><span>DATA CONTROL</span><h2>我的数据权利</h2></div></div>
         <p>可下载个人资料、成长任务、证据元数据与面试报告。导出文件不包含密码和文件二进制内容。</p>
         <button className="account-export" type="button" onClick={exportData}>下载个人数据 JSON</button>
-        {deletion && !deletion.cancelledAt && !deletion.completedAt ? <div className="account-deletion pending"><b>注销申请已提交</b><span>计划处理时间：{new Date(deletion.scheduledAt).toLocaleString("zh-CN")}</span><button onClick={() => changeDeletion(true)}>撤销注销申请</button></div> : <div className="account-deletion"><b>账号注销</b><span>提交后有 7 天撤销期，正式删除需管理员执行并记录审计日志。</span><button onClick={() => changeDeletion(false)}>申请注销账号</button></div>}
+        {deletion && !deletion.cancelledAt && !deletion.completedAt ? <div className="account-deletion pending"><b>注销申请已提交</b><span>计划处理时间：{new Date(deletion.scheduledAt).toLocaleString("zh-CN")}</span><button onClick={() => changeDeletion(true)}>撤销注销申请</button></div> : <div className="account-deletion"><b>账号注销</b><span>提交后有 7 天撤销期，正式删除需管理员执行并记录审计日志。</span><input type="password" value={deletionPassword} onChange={event => setDeletionPassword(event.target.value)} placeholder="输入当前密码确认" autoComplete="current-password" /><button onClick={() => changeDeletion(false)}>申请注销账号</button></div>}
       </article>
     </section>
   </PortalFrame>;

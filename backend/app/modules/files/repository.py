@@ -19,11 +19,11 @@ class FileRepository:
         await self.db.refresh(file)
         return self._to_dict(file)
 
-    async def get_file(self, file_id: str) -> dict | None:
+    async def get_file(self, file_id: str, *, include_storage_key: bool = False) -> dict | None:
         stmt = select(File).where(File.id == file_id)
         result = await self.db.execute(stmt)
         f = result.scalar_one_or_none()
-        return self._to_dict(f) if f else None
+        return self._to_dict(f, include_storage_key=include_storage_key) if f else None
 
     async def list_files_by_owner(
         self, owner_type: str, owner_id: str, limit: int = 100
@@ -37,12 +37,11 @@ class FileRepository:
         result = await self.db.execute(stmt)
         return [self._to_dict(f) for f in result.scalars().all()]
 
-    def _to_dict(self, f: File) -> dict:
-        return {
+    def _to_dict(self, f: File, *, include_storage_key: bool = False) -> dict:
+        data = {
             "id": f.id,
             "owner_type": f.owner_type,
             "owner_id": f.owner_id,
-            "object_key": f.object_key,
             "original_filename": f.original_filename,
             "mime_type": f.mime_type,
             "file_size": f.file_size,
@@ -51,3 +50,6 @@ class FileRepository:
             "is_public": f.is_public,
             "created_at": f.created_at.isoformat() if f.created_at else None,
         }
+        if include_storage_key:
+            data["object_key"] = f.object_key
+        return data

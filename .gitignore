@@ -58,6 +58,8 @@ build/
 .venv/
 venv/
 backend/.env
+backend/storage/
+storage/
 
 # IDE
 .idea/

@@ -1,434 +1,70 @@
-# 薪火未来 · 大学生成长决策平台
+# 薪火未来 v0.5.0
 
-面向大学生的 AI 驱动成长规划与智能职业匹配平台。
+面向大学生的证据型成长、岗位匹配与模拟面试平台。当前版本已将河流版前端完整接到 **FastAPI + MySQL 模块化单体**，旧 CloudBase 函数仅保留作迁移对照，不参与运行。
 
-当前阶段从 CloudBase 单体架构重构为 **FastAPI + MySQL 模块化单体**，
-支持三个业务组并行开发。
+## v0.5 已实现
 
----
+- 学生任务 → 佐证上传 → 教师按班级审核 → 五维画像更新 → 岗位匹配/补强任务的闭环。
+- 真实文件存储：本地开发目录或腾讯 COS；内容签名、大小、归属和下载权限校验。
+- 服务端模型网关：超时、重试、并发上限、服务端密钥；无模型密钥时保留确定性本地流程。
+- 登录锁定、接口限流、来源校验、安全响应头、会话撤销、强密码和生产配置启动拦截。
+- 管理后台：账号审核、教师账号、佐证审核、容量统计、审计日志、找回密码和注销撤销期。
+- 个人数据导出、隐私政策、服务协议、同意版本记录和数据清理流程。
+- 健康探针、数据库就绪探针、Prometheus 文本指标、结构化日志和请求 ID。
+- MySQL 迁移、旧数据导入、备份/恢复校验、CI、依赖更新与发布清单。
 
-## 当前开发状态
+## 本地使用（推荐）
 
-| Phase | 内容 | 状态 |
-|-------|------|------|
-| Phase 1 | FastAPI + MySQL + Docker 工程底座 | ✅ 完成 |
-| Phase 1.1 | 三组业务职责重新对齐 + 架构纠偏 | ✅ 完成 |
-| Phase 2 | 跨组 Contract + Mock + Backlog 建设 | ✅ 完成 |
-| Phase 2.x | 三组正式业务开发 | 🔜 即将开始 |
-
-> **重要**: Backlog 中列出的业务功能尚未实现。当前仅完成了工程架构、数据库模型、API 骨架和跨组契约。
-
----
-
-## 技术栈
-
-| 层 | 技术 | 版本 |
-|----|------|------|
-| Frontend | Next.js + React + TypeScript (`frontend/`) | 16.x / 19.x |
-| Backend | FastAPI (Python) | 0.136+ |
-| Database | MySQL | 8.0+ |
-| ORM | SQLAlchemy | 2.0+ |
-| Migration | Alembic | 1.19+ |
-| Validation | Pydantic | 2.13+ |
-| Testing | pytest | 9.x |
-| File Storage | 腾讯云 COS | — |
-| Deployment | Docker + 腾讯云 | — |
-| Architecture | 模块化单体 (Modular Monolith) | — |
-
-**旧系统**: CloudBase Node.js 后端 (`functions/xinhuo-api/`) 暂时保留，仅用于迁移参考和接口行为对照。
-
----
-
-## 项目目录结构
-
-```
-xinhuo-future-main/
-├── frontend/                # Next.js 前端 (App Router)
-│   ├── app/                 # 页面路由
-│   │   ├── page.tsx         # 登录/注册首页
-│   │   ├── components/      # 共享组件
-│   │   ├── dashboard/       # Group2 — 仪表盘
-│   │   ├── growth-map/      # Group2 — 成长地图
-│   │   ├── portrait/        # Group2 — 能力画像
-│   │   ├── ai/              # Group2 — 成长决策
-│   │   ├── interview/       # Group1 — AI模拟面试
-│   │   ├── career/          # Group3 — 职业发展
-│   │   ├── account/         # Shared — 个人中心
-│   │   ├── admin/           # Shared — 管理中心
-│   │   ├── teacher/         # Shared — 教师工作台
-│   │   └── resources/       # Shared — 资源中心
-│   ├── lib/                 # 前端业务引擎 (TypeScript)
-│   ├── tests/               # 前端测试
-│   ├── public/              # 静态资源
-│   ├── data/                # 前端静态数据 (学校/学院)
-│   ├── scripts/             # 前端脚本
-│   ├── types/               # TypeScript 类型声明
-│   ├── package.json         # 前端依赖
-│   ├── next.config.ts       # Next.js 配置
-│   └── tsconfig.json        # TypeScript 配置
-│
-├── backend/                 # FastAPI 后端
-│   ├── app/
-│   │   ├── main.py          # FastAPI 入口
-│   │   ├── core/            # 配置/安全/异常/日志/权限
-│   │   ├── db/              # SQLAlchemy Base + Session
-│   │   ├── modules/         # 业务模块 (见下表)
-│   │   ├── contracts/       # 跨组数据契约 (Pydantic DTO)
-│   │   ├── integrations/    # COS/LLM/ASR/TTS/OCR
-│   │   └── tests/           # pytest
-│   ├── alembic/             # 数据库迁移
-│   ├── scripts/             # 导入脚本
-│   ├── docker-compose.yml   # 本地开发环境
-│   └── .env.example         # 环境变量模板
-│
-├── functions/xinhuo-api/    # 旧 CloudBase Node 后端 (保留)
-├── docs/                    # 项目文档
-└── .github/                 # CODEOWNERS
-```
-
-### 后端模块归属
-
-| 目录 | 归属 | 职责 |
-|------|------|------|
-| `backend/app/modules/auth/` | Shared | 认证/登录 |
-| `backend/app/modules/users/` | Shared | 用户/学生/教师档案 |
-| `backend/app/modules/reference/` | Shared | 标准字典 |
-| `backend/app/modules/organization/` | Shared | 学校/学院/专业 |
-| `backend/app/modules/admission/` | Shared | 招生数据 |
-| `backend/app/modules/admin/` | Shared | 管理/审计 |
-| `backend/app/modules/files/` | Shared | 统一文件存储 |
-| `backend/app/modules/imports/` | Shared | 数据导入 |
-| `backend/app/modules/resume/` | Group1 | AI简历 |
-| `backend/app/modules/interview/` | Group1 | AI面试 |
-| `backend/app/modules/evidence/` | Group2 | 证据管理 |
-| `backend/app/modules/growth/` | Group2 | 画像/成长/榜样 |
-| `backend/app/modules/employment/` | Group3 | 就业数据 |
-| `backend/app/modules/career/` | Group3 | 岗位/匹配/投递 |
-
----
-
-## 三组正式职责
-
-### Group1 — AI简历 + AI模拟面试
-
-- 长期分支: `group1-dev`
-- Backlog: [docs/GROUP1-BACKLOG.md](docs/GROUP1-BACKLOG.md)
-- 拥有: resume, interview, llm, asr, tts, ocr
-- 前端: `/interview`
-
-### Group2 — 任务匹配 + 榜样激励
-
-- 长期分支: `group2-dev`
-- Backlog: [docs/GROUP2-BACKLOG.md](docs/GROUP2-BACKLOG.md)
-- 拥有: evidence, growth (含 assessment, portrait, role_models)
-- 前端: `/dashboard`, `/growth-map`, `/portrait`, `/ai`
-
-### Group3 — 智能岗位匹配
-
-- 长期分支: `group3-dev`
-- Backlog: [docs/GROUP3-BACKLOG.md](docs/GROUP3-BACKLOG.md)
-- 拥有: employment, career (含 candidate_pushes, authorizations)
-- 前端: `/career`
-
-### Shared/Core — 平台公共底座
-
-- 不属于任何单一业务组，由项目维护者管理
-- 拥有: auth, users, reference, organization, admission, admin, files, imports
-- 所有组都可以读取，禁止各组创建自己的 student/job/file 表
-
----
-
-## 组间数据关系
-
-```
-Shared Student Data
-  → Group2 基线测评 / 画像 / 成长任务
-    → Group1 AI简历 / 模拟面试
-    → Group3 岗位匹配 / 投递
-
-同时: Group3 的岗位/JD 被 Group1 和 Group2 使用
-```
-
-详细数据流: [docs/BUSINESS-DATA-FLOW.md](docs/BUSINESS-DATA-FLOW.md)
-跨组依赖分析: [docs/CROSS-GROUP-DEPENDENCIES.md](docs/CROSS-GROUP-DEPENDENCIES.md)
-
----
-
-## 本地启动
-
-### 前提
-
-- Node.js >= 22.13
-- Python >= 3.12
-- Docker Desktop
-
-### 1. Clone 项目
+前提：Docker Desktop、Node.js 22.13+。后端容器使用 Python 3.12；若不用 Docker，本机 Python 必须 3.12+。
 
 ```bash
-git clone <repo-url> xinhuo-future
-cd xinhuo-future
-git checkout groupX-dev   # 切换到你的组分支
-```
-
-### 2. 前端
-
-```bash
-cd frontend
-npm install
-npm run dev               # http://localhost:3000
-```
-
-### 3. 后端
-
-```bash
-cd backend
-
-# 复制环境变量
+git clone https://github.com/liuli-cc/xinhuo-future-2.git
+cd xinhuo-future-2/backend
 cp .env.example .env
-
-# 安装依赖
-pip install -r requirements.txt
-pip install aiomysql
-
-# 启动 MySQL + FastAPI
-docker compose up -d
-
-# 运行数据库迁移
-docker compose exec backend alembic upgrade head
-
-# 或本地启动:
-# alembic upgrade head
-# uvicorn app.main:app --reload --port 8000
+docker compose up --build -d
+curl http://localhost:8000/health/ready
 ```
 
-### 4. 验证
-
-```
-http://localhost:8000/health   → {"ok": true}
-http://localhost:8000/docs     → Swagger UI
-http://localhost:3000          → 前端
-```
-
-### 5. 导入参考数据
+另开终端：
 
 ```bash
-cd backend
-python scripts/import_reference_data.py --type all
+cd xinhuo-future-2/frontend
+cp .env.example .env.local
+npm ci
+npm run dev
 ```
 
-### 6. 运行测试
+浏览器打开 [http://localhost:3000](http://localhost:3000)。API 文档在 [http://localhost:8000/docs](http://localhost:8000/docs)，数据库管理工具在 [http://localhost:8080](http://localhost:8080)。
 
-```bash
-cd backend
-pytest                        # 全部测试 (13+)
-```
-
----
-
-## 环境变量
-
-```bash
-cp backend/.env.example backend/.env
-```
-
-必须填写的变量:
-
-| 变量 | 说明 |
-|------|------|
-| `MYSQL_HOST` / `MYSQL_PASSWORD` | MySQL 连接 |
-| `SECRET_KEY` | 随机字符串 (生产环境必须更换) |
-| `COS_SECRET_ID` / `COS_SECRET_KEY` / `COS_BUCKET` | 腾讯云 COS (Phase 2) |
-| `TENCENT_SECRET_ID` / `TENCENT_SECRET_KEY` | ASR/TTS (Phase 2) |
-
-**禁止提交 `.env` 到 Git。**
-
----
-
-## Git 开发流程
-
-```
-main          ← 稳定/生产 (禁止直接 Push)
-  ↑ PR
-develop       ← 集成 (通过 PR 从 groupX-dev 合并)
-  ↑ PR
-group1-dev    ← Group1 长期开发
-group2-dev    ← Group2 长期开发
-group3-dev    ← Group3 长期开发
-  ↑ PR
-feature/gX-xxx ← 个人开发分支
-```
-
-### 个人开发流程
-
-```bash
-git checkout groupX-dev
-git pull
-git checkout -b feature/gX-任务编号
-# 开发...
-git add -A
-git commit -m "feat: 任务描述"
-git push origin feature/gX-任务编号
-# 在 GitHub 创建 PR → groupX-dev
-```
-
-### Feature Branch 命名
-
-```
-Group1:  feature/g1-resume-generation
-Group2:  feature/g2-baseline-assessment
-Group3:  feature/g3-job-match
-Shared:  feature/shared-xxx
-```
-
----
-
-## 如何领取任务
-
-各组的 Backlog 见:
-
-- [Group1 Backlog](docs/GROUP1-BACKLOG.md) — 任务编号 G1-01 ~ G1-11
-- [Group2 Backlog](docs/GROUP2-BACKLOG.md) — 任务编号 G2-01 ~ G2-08
-- [Group3 Backlog](docs/GROUP3-BACKLOG.md) — 任务编号 G3-01 ~ G3-09
-
-任务编号对应 Feature Branch 名称，如 `G1-02` → `feature/g1-resume-generation`。
-
----
-
-## 跨组依赖怎么办
-
-**不要等待其他组功能完成。** 使用公共 Contract 和 Mock 独立开发:
-
-```python
-# 当 Group3 开发匹配引擎时，Group2 的画像还没完成:
-from app.tests.fixtures.mock_data import make_student_portrait
-portrait = make_student_portrait(user_id=1)
-```
-
-- 公共 Contract: `backend/app/contracts/`
-- Mock 数据: `backend/app/tests/fixtures/mock_data.py`
-- 跨组契约文档: [docs/API-CONTRACTS.md](docs/API-CONTRACTS.md)
-
-> **禁止**: 为了开发方便复制其他组的数据库表或业务逻辑。
-> 跨组数据必须通过 Contract 和 Service 接口获取。
-
----
-
-## 数据库开发规范
-
-- 所有表结构变更必须通过 **Alembic Migration**
-- 禁止手工修改数据库后不写 Migration
-- 禁止一组创建另一套 `student` / `job` / `file` 表
-- 详见: [docs/DATABASE-DESIGN.md](docs/DATABASE-DESIGN.md), [docs/MODULE-BOUNDARIES.md](docs/MODULE-BOUNDARIES.md)
-
----
-
-## API 开发规范
-
-每个模块遵循 **Router → Service → Repository → Model → Schema** 五层:
-
-| 层 | 文件 | 职责 |
-|----|------|------|
-| Router | `router.py` | HTTP 请求/响应处理 |
-| Service | `service.py` | 业务逻辑 |
-| Repository | `repository.py` | 数据库读写 |
-| Model | `model.py` | SQLAlchemy 表定义 |
-| Schema | `schema.py` | Pydantic 请求/响应模型 |
-
-> **禁止**: 把所有逻辑塞进 Router。
-
----
-
-## 文件管理
-
-- 文件上传至 **腾讯云 COS**
-- MySQL `files` 表仅保存元数据和 `object_key`
-- **禁止**: 将 Base64 文件直接长期存入 MySQL
-
----
+首次使用：先在后端容器中执行 `python scripts/bootstrap_admin.py --student-id 你的工号 --name 你的姓名`，交互式创建首个学校管理员（密码不会出现在命令历史）；再注册学生/教师账号并由管理员审核。详细步骤见 [使用手册](docs/USAGE.md)。
 
 ## 测试
 
 ```bash
 cd backend
-pytest                          # 全部测试
-pytest -m unit                  # 仅单元测试
-pytest app/tests/test_boundaries.py  # 模块边界测试
+pytest
+
+cd ../frontend
+npm run lint
+npm test
 ```
 
-PR 提交前必须:
-```bash
-pytest                          # 全部通过
-```
+当前验收覆盖后端边界/业务集成、安全与隐私，以及前端生产构建、91 项功能测试和 14 项静态页面测试。
 
----
+## 配置边界
 
-## Legacy 旧系统
+- 开发默认 `FILE_STORAGE_BACKEND=local`，文件写到 `backend/storage/`（已忽略）。
+- 正式环境必须使用随机 `SECRET_KEY`、HTTPS 来源、安全 Cookie 和 `FILE_STORAGE_BACKEND=cos`；否则应用拒绝启动。
+- 正式环境还必须设置 `RETURN_SESSION_TOKEN=false` 和 `METRICS_TOKEN`；登录只使用 HttpOnly Cookie，指标端点必须携带监控令牌。
+- 模型密钥仅放后端 `.env`。`ALLOW_CLIENT_LLM_KEYS=false` 时浏览器输入的密钥不会被使用。
+- 静态前端的 `NEXT_PUBLIC_API_BASE` 在构建时写入，改变 API 地址后必须重新构建。
+- 本次未部署任何云服务、未配置真实 COS/模型密钥、未对生产数据执行恢复或删除。
 
-`functions/xinhuo-api/` 是旧 CloudBase Node.js 后端。
+## 文档
 
-- **禁止新业务写入旧后端**
-- 仅用于: 迁移参考 / 接口行为对照 / 兼容旧前端
-- 只有在对应 FastAPI 模块迁移完成并通过测试后才能删除
-
----
-
-## 当前未完成内容
-
-| 模块 | 状态 |
-|------|------|
-| Shared — auth (login/me/logout) | READY |
-| Shared — users/{id} | READY |
-| Shared — reference/* | READY |
-| Shared — organization/* | READY |
-| Shared — files/upload | READY |
-| Shared — imports/batches | READY |
-| Shared — account/sessions/deletion | NOT STARTED |
-| Group1 — 全部业务功能 | NOT STARTED |
-| Group2 — 全部业务功能 | NOT STARTED |
-| Group3 — 全部业务功能 | NOT STARTED |
-
----
-
-## 项目文档导航
-
-### 必读 (首次加入必看)
-
-| # | 文档 | 内容 |
-|---|------|------|
-| 1 | [README.md](README.md) | 你正在看 — 项目总览 |
-| 2 | [docs/TEAM-OWNERSHIP.md](docs/TEAM-OWNERSHIP.md) | 哪个组管哪些模块 |
-| 3 | 你的 Group Backlog | [G1](docs/GROUP1-BACKLOG.md) / [G2](docs/GROUP2-BACKLOG.md) / [G3](docs/GROUP3-BACKLOG.md) |
-| 4 | [docs/API-CONTRACTS.md](docs/API-CONTRACTS.md) | 跨组数据契约 |
-| 5 | [docs/CROSS-GROUP-DEPENDENCIES.md](docs/CROSS-GROUP-DEPENDENCIES.md) | 依赖关系与 Mock 开发指南 |
-| 6 | [backend/README.md](backend/README.md) | 后端环境搭建详情 |
-
-### 架构与设计
-
-| 文档 | 内容 |
-|------|------|
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 系统架构图 + 技术选型 |
-| [docs/DATABASE-DESIGN.md](docs/DATABASE-DESIGN.md) | 数据库 ER 图 + 设计决策 |
-| [docs/MODULE-BOUNDARIES.md](docs/MODULE-BOUNDARIES.md) | 表所有权 + 读写权限 |
-| [docs/BUSINESS-DATA-FLOW.md](docs/BUSINESS-DATA-FLOW.md) | 跨组数据流 Mermaid 图 |
-
-### 开发参考
-
-| 文档 | 内容 |
-|------|------|
-| [docs/API-CONTRACTS.md](docs/API-CONTRACTS.md) | API 契约 + 公共 ID 体系 |
-| [docs/API-MIGRATION.md](docs/API-MIGRATION.md) | 旧 API 迁移状态追踪 |
-| [docs/CROSS-GROUP-DEPENDENCIES.md](docs/CROSS-GROUP-DEPENDENCIES.md) | 依赖分析 + 并行开发计划 |
-
-### 阶段报告
-
-| 文档 | 内容 |
-|------|------|
-| [docs/PHASE1-ACCEPTANCE.md](docs/PHASE1-ACCEPTANCE.md) | Phase 1 验收结果 |
-| [docs/PHASE1.1-CORRECTION-REPORT.md](docs/PHASE1.1-CORRECTION-REPORT.md) | 业务边界修正 |
-| [docs/PHASE2-PREPARATION-REPORT.md](docs/PHASE2-PREPARATION-REPORT.md) | Phase 2 准备完成 |
-
-### 历史参考
-
-| 文档 | 内容 |
-|------|------|
-| [docs/CORE-V2.md](docs/CORE-V2.md) | 旧系统核心算法文档 |
+- [最新使用手册](docs/USAGE.md)
+- [数据迁移手册](docs/DATA-MIGRATION-RUNBOOK.md)
+- [备份与恢复](docs/BACKUP-RESTORE.md)
+- [运营与告警](docs/OPERATIONS-RUNBOOK.md)
+- [上线前清单](docs/PRODUCTION-CHECKLIST.md)
+- [模块边界](docs/MODULE-BOUNDARIES.md)

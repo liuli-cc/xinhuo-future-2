@@ -1,6 +1,6 @@
 {
   "name": "xinhuo-student-growth-platform",
-  "version": "0.3.0",
+  "version": "0.5.0",
   "private": true,
   "engines": {
     "node": ">=22.13.0"
@@ -9,27 +9,23 @@
     "postinstall": "node scripts/copy-ocr-assets.mjs",
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "node scripts/serve-static.mjs",
     "test:unit": "node --experimental-strip-types --test tests/*.test.ts tests/*.test.mjs",
     "test": "npm run build -- --webpack && npm run test:unit && node --test tests/rendered-html.test.mjs",
-    "lint": "eslint . --ignore-pattern .next --ignore-pattern dist",
-    "db:generate": "drizzle-kit generate"
+    "lint": "eslint . --ignore-pattern .next --ignore-pattern dist"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",
     "@phosphor-icons/react": "^2.1.10",
     "@tesseract.js-data/chi_sim": "^1.0.0",
     "@tesseract.js-data/eng": "^1.0.0",
-    "@types/pg": "^8.20.0",
     "docx": "^9.7.1",
-    "drizzle-orm": "0.45.2",
     "gsap": "^3.15.0",
     "jspdf": "^4.2.1",
     "next": "^16.2.12",
     "pdfjs-dist": "^6.2.108",
-    "pg": "^8.22.0",
-    "react": "19.2.6",
-    "react-dom": "19.2.6",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
     "tesseract.js": "^7.0.0",
     "three": "^0.185.1"
   },
@@ -39,14 +35,18 @@
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "@types/three": "^0.185.1",
-    "drizzle-kit": "0.31.10",
     "eslint": "9.39.4",
     "eslint-config-next": "16.2.12",
-    "react-server-dom-webpack": "19.2.6",
+    "react-server-dom-webpack": "19.2.8",
     "tailwindcss": "4.2.1",
     "typescript": "5.9.3"
   },
   "overrides": {
+    "brace-expansion": "1.1.18",
+    "dompurify": "3.4.13",
+    "fast-uri": "3.1.5",
+    "js-yaml": "4.3.1",
+    "nanoid": "3.3.18",
     "postcss": "8.5.25",
     "sharp": "0.35.3"
   },

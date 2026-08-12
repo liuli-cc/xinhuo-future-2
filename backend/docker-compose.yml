@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   # ── MySQL 8 ───────────────────────────────────────────────
   mysql:
@@ -46,15 +44,17 @@ services:
       - "8000:8000"
     volumes:
       - .:/app
+      - local_file_storage:/app/storage
     depends_on:
       mysql:
         condition: service_healthy
     command: >
-      sh -c "
-        pip install aiomysql &&
-        alembic upgrade head &&
-        uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-      "
+      sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   # ── Adminer (optional DB GUI) ────────────────────────────
   adminer:
@@ -68,3 +68,4 @@ services:
 
 volumes:
   mysql_data:
+  local_file_storage:

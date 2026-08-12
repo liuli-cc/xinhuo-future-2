@@ -18,13 +18,22 @@ function apiBase() {
 
 function sessionToken() {
   if (typeof window === "undefined") return "";
-  return window.localStorage.getItem(SESSION_STORAGE_KEY) ?? "";
+  migrateLegacySession();
+  return window.sessionStorage.getItem(SESSION_STORAGE_KEY) ?? "";
 }
 
 function saveSession(token: string) {
   if (typeof window !== "undefined" && token) {
-    window.localStorage.setItem(SESSION_STORAGE_KEY, token);
+    window.sessionStorage.setItem(SESSION_STORAGE_KEY, token);
   }
+}
+
+function migrateLegacySession() {
+  if (typeof window === "undefined") return;
+  const token = window.localStorage.getItem(SESSION_STORAGE_KEY);
+  if (!token) return;
+  window.sessionStorage.setItem(SESSION_STORAGE_KEY, token);
+  window.localStorage.removeItem(SESSION_STORAGE_KEY);
 }
 
 function saveProfile(profile: unknown) {
@@ -60,6 +69,7 @@ export function updateCachedUserProfile(profile: unknown) {
 function clearSession() {
   if (typeof window !== "undefined") {
     window.localStorage.removeItem(SESSION_STORAGE_KEY);
+    window.sessionStorage.removeItem(SESSION_STORAGE_KEY);
     window.localStorage.removeItem(PROFILE_STORAGE_KEY);
     profileCache = null;
     window.dispatchEvent(new Event(PROFILE_EVENT));
@@ -86,13 +96,6 @@ function localError(message: string) {
   return jsonResponse(503, { error: message, error_code: "api_unavailable" });
 }
 
-function unmigratedRoute(path: string) {
-  return jsonResponse(501, {
-    error: `前端页面已迁移，但 ${path} 对应的 FastAPI 业务模块尚未迁移。`,
-    error_code: "backend_module_not_migrated",
-  });
-}
-
 async function normalizeErrorResponse(response: Response) {
   if (response.ok) return response;
   const payload = await response.clone().json().catch(() => null) as Record<string, unknown> | null;
@@ -105,33 +108,11 @@ async function normalizeErrorResponse(response: Response) {
   return jsonResponse(response.status, { ...payload, error: message });
 }
 
-function parseJsonBody(body: BodyInit | null | undefined): Record<string, unknown> | null {
-  if (typeof body !== "string") return null;
-  try {
-    const value = JSON.parse(body) as unknown;
-    return value && typeof value === "object" ? value as Record<string, unknown> : null;
-  } catch {
-    return null;
-  }
-}
-
-function mappedEndpoint(pathname: string, body: BodyInit | null | undefined) {
-  const authPath = pathname.match(/^\/api\/auth\/(login|logout|me|register)$/);
-  if (authPath) return `/api/v1/auth/${authPath[1]}`;
+function mappedEndpoint(pathname: string) {
   if (pathname === "/api/health") return "/api/health";
-
-  // The new backend has a safe, authenticated profile update endpoint. Map
-  // only the old page's explicit profile action; password/session/deletion
-  // actions remain unavailable until their FastAPI modules exist.
-  if (pathname === "/api/account") {
-    const payload = parseJsonBody(body);
-    const profile = cachedUserProfile<{ id?: number }>();
-    if (payload?.action === "profile" && typeof profile?.id === "number" && profile.id > 0) {
-      return `/api/v1/users/${profile.id}`;
-    }
-  }
-
-  return null;
+  // v0.5 exposes the river frontend's complete compatibility contract under
+  // the versioned FastAPI namespace. No legacy function gateway fallback.
+  return `/api/v1${pathname.slice(4)}`;
 }
 
 /** Replacement for client-side fetch('/api/...') calls in the river frontend. */
@@ -142,8 +123,7 @@ export async function apiFetch(input: ApiInput, init?: RequestInit): Promise<Res
   const base = apiBase();
   if (!base) return localError("平台后端尚未配置，请设置 NEXT_PUBLIC_API_BASE");
 
-  const endpoint = mappedEndpoint(url.pathname, init?.body);
-  if (!endpoint) return unmigratedRoute(url.pathname);
+  const endpoint = mappedEndpoint(url.pathname);
 
   try {
     const headers = new Headers(init?.headers);
@@ -161,6 +141,10 @@ export async function apiFetch(input: ApiInput, init?: RequestInit): Promise<Res
       if (payload.user) saveProfile(payload.user);
     }
     if (url.pathname === "/api/auth/logout" && response.ok) clearSession();
+    if (url.pathname === "/api/account" && response.ok) {
+      const payload = await response.clone().json().catch(() => null) as { user?: unknown } | null;
+      if (payload?.user) saveProfile(payload.user);
+    }
     if (response.status === 401 && url.pathname !== "/api/auth/login") clearSession();
     return normalizeErrorResponse(response);
   } catch (error) {

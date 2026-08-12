@@ -23,7 +23,6 @@ class RegisterRequest(BaseModel):
     grade: str = Field(default="", max_length=20)
     consent: bool = Field(default=False)
 
-
 class PublicUser(BaseModel):
     """Public user profile — sensitive fields EXCLUDED."""
     id: int
@@ -44,8 +43,8 @@ class PublicUser(BaseModel):
     developmentTrack: str = "exploration"
     interests: list = Field(default_factory=list)
     consentAt: int | None = None
-    createdAt: int | None = None
-    updatedAt: int | None = None
+    createdAt: int | str | None = None
+    updatedAt: int | str | None = None
     lastLoginAt: int | None = None
 
 
@@ -61,6 +60,6 @@ class MeResponse(BaseModel):
 class HealthResponse(BaseModel):
     ok: bool = True
     service: str = "xinhuo-api"
-    version: str = "0.4.0"
+    version: str = "0.5.0"
     storage: str = "mysql"
     mode: str = "fastapi"

@@ -17,6 +17,8 @@ for (const [path, text] of [
   ["/ai", "成长决策引擎"],
   ["/resources", "成长资源"],
   ["/career", "实习就业"],
+  ["/privacy", "薪火未来隐私政策"],
+  ["/terms", "薪火未来服务协议"],
 ]) {
   test(`static-export contains ${path}`, async () => {
     const fileName = path === "/" ? "index.html" : `${path.slice(1)}.html`;
