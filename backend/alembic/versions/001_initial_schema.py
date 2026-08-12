@@ -270,7 +270,10 @@ def upgrade() -> None:
         sa.Column("filing_score", sa.Numeric(8, 2), nullable=True),
         sa.Column("foreign_language_type", sa.String(30), nullable=True),
         sa.Column("admission_year", sa.Integer(), nullable=True),
-        sa.Column("raw_import_id", sa.Integer(), sa.ForeignKey("data_import_batches.id"), nullable=True),
+        # The import batch table is created later because it also references
+        # users. Add this foreign key after both tables exist (MySQL does not
+        # allow a forward reference to a table that has not been created).
+        sa.Column("raw_import_id", sa.Integer(), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
@@ -716,6 +719,13 @@ def upgrade() -> None:
     )
     op.create_index("ix_dib_source_type", "data_import_batches", ["source_type"])
     op.create_index("ix_dib_source_year", "data_import_batches", ["source_year"])
+    op.create_foreign_key(
+        "fk_student_admissions_raw_import_id",
+        "student_admissions",
+        "data_import_batches",
+        ["raw_import_id"],
+        ["id"],
+    )
 
     op.create_table(
         "data_import_rows",
@@ -739,6 +749,11 @@ def upgrade() -> None:
 def downgrade() -> None:
     """Drop all tables in reverse dependency order."""
     op.drop_table("data_import_rows")
+    op.drop_constraint(
+        "fk_student_admissions_raw_import_id",
+        "student_admissions",
+        type_="foreignkey",
+    )
     op.drop_table("data_import_batches")
     op.drop_table("files")
     op.drop_table("deletion_requests")
