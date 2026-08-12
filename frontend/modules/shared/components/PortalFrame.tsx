@@ -27,6 +27,7 @@ import {
 } from "@phosphor-icons/react";
 import Link from "next/link";
 import { ReactNode, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import GrowthCommandPalette from "./GrowthCommandPalette";
 
 export type Profile = {
   id: number;
@@ -136,6 +137,7 @@ export default function PortalFrame({
   const [profileOpen, setProfileOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const [serviceState, setServiceState] = useState<"checking" | "connected" | "offline">("checking");
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -152,6 +154,19 @@ export default function PortalFrame({
     };
     document.addEventListener("pointerdown", close);
     return () => document.removeEventListener("pointerdown", close);
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), 4500);
+    apiFetch("/api/health/ready", { signal: controller.signal })
+      .then(response => setServiceState(response.ok ? "connected" : "offline"))
+      .catch(() => setServiceState("offline"))
+      .finally(() => window.clearTimeout(timer));
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
   }, []);
 
   const logout = async () => {
@@ -197,7 +212,13 @@ export default function PortalFrame({
         </section>)}
       </nav>
       <div className="app-sidebar-foot">
-        <div className="app-cloud-note"><ShieldCheck size={18} weight="duotone" /><span><b>云端档案已连接</b><small>权限和数据按角色隔离</small></span></div>
+        <div className={`app-cloud-note ${serviceState}`} role="status">
+          <ShieldCheck size={18} weight="duotone" />
+          <span>
+            <b>{serviceState === "checking" ? "正在检查档案服务" : serviceState === "connected" ? "成长档案可用" : "离线预览模式"}</b>
+            <small>{serviceState === "connected" ? "权限和数据按角色隔离" : serviceState === "checking" ? "页面可以继续浏览" : "数据操作需连接后端"}</small>
+          </span>
+        </div>
         <button className="app-sidebar-collapse" onClick={() => setCollapsed(value => !value)} aria-label={collapsed ? "展开侧栏" : "收起侧栏"}><SidebarSimple size={19} weight="duotone" /><span>{collapsed ? "展开" : "收起侧栏"}</span></button>
       </div>
     </aside>
@@ -211,7 +232,11 @@ export default function PortalFrame({
           <div className="app-breadcrumb"><small>{eyebrow || "薪火成长平台"}</small><b>{title}</b></div>
         </div>
         <div className="app-topbar-right">
-          <span className="app-cloud-status"><i />平台服务已连接</span>
+          {profile.role === "student" && <GrowthCommandPalette />}
+          <span className={`app-cloud-status ${serviceState}`} role="status">
+            <i />
+            {serviceState === "checking" ? "正在检查平台服务" : serviceState === "connected" ? "平台服务正常" : "平台服务暂不可用"}
+          </span>
           <Link className="app-topbar-icon" href={profile.role === "student" ? "/growth-map" : homeHref} aria-label="成长提醒"><Bell size={20} weight="duotone" />{storageWarning && <i />}</Link>
           <div className="app-profile-menu" ref={profileMenuRef}>
             <button className="app-profile-trigger" onClick={() => setProfileOpen(value => !value)} aria-expanded={profileOpen} aria-haspopup="dialog">

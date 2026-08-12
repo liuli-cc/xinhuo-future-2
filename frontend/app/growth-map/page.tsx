@@ -8,6 +8,7 @@ import PortalFrame, { useStudentProfile } from "@/modules/shared/components/Port
 import { AnimatedDonutChart, AnimatedLineChart } from "@/modules/shared/components/DataViz";
 import FourYearJourney from "@/modules/group-2-growth/components/FourYearJourney";
 import { ABILITY_DIMENSIONS, SOURCE_META, type AbilityDimension, type EvidenceSource } from "@/modules/group-2-growth/client/growth-engine";
+import { currentSemesterForGrade } from "@/modules/shared/growth/semester";
 
 type Task = {
   id: string;
@@ -41,15 +42,6 @@ type Semester = {
 };
 
 const semesterLabels = ["大一上", "大一下", "大二上", "大二下", "大三上", "大三下", "大四上", "大四下"];
-
-function getCurrentSemester(grade: string) {
-  const entryYear = Number(grade.match(/\d{4}/)?.[0]);
-  if (!entryYear) return 0;
-  const now = new Date();
-  const academicYear = now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1;
-  const term = now.getMonth() >= 8 ? 0 : 1;
-  return Math.max(0, Math.min(7, (academicYear - entryYear) * 2 + term));
-}
 
 function getCurrentPhase() {
   const month = new Date().getMonth();
@@ -236,7 +228,7 @@ function freshEvidence(task: Task | null) {
 
 export default function GrowthMap() {
   const profile = useStudentProfile();
-  const currentSemester = getCurrentSemester(profile.grade);
+  const currentSemester = currentSemesterForGrade(profile.grade);
   const currentPhase = getCurrentPhase();
   const semesters = useMemo(() => makeSemesters(profile.major), [profile.major]);
   const [selectedSemester, setSelectedSemester] = useState<number | null>(null);
@@ -249,6 +241,7 @@ export default function GrowthMap() {
   const [evidenceForm, setEvidenceForm] = useState(() => freshEvidence(null));
   const [evidenceFile, setEvidenceFile] = useState<File | null>(null);
   const [submittingEvidence, setSubmittingEvidence] = useState(false);
+  const [incomingContext, setIncomingContext] = useState<{ from: string; target: string } | null>(null);
 
   const semesterIndex = selectedSemester ?? currentSemester;
   const semester = semesters[semesterIndex];
@@ -273,6 +266,10 @@ export default function GrowthMap() {
   };
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const from = params.get("from") ?? "";
+    const target = params.get("target") ?? "";
+    if (from && target) setIncomingContext({ from, target });
     apiFetch("/api/growth-path")
       .then(async response => {
         const body = await response.json() as { tasks?: SavedTask[]; error?: string };
@@ -385,6 +382,10 @@ export default function GrowthMap() {
       subtitle="根据你保存的年级和专业生成，不使用固定示例学生信息。"
       actions={<button className="ghost-action" onClick={() => { setSelectedSemester(null); setSelectedPhase(null); }}>回到当前学期</button>}
     >
+      {incomingContext && <section className="growth-context-banner" role="status">
+        <div><span>{incomingContext.from === "interview" ? "来自模拟面试" : "已接收上一步上下文"}</span><b>围绕“{incomingContext.target}”继续补强</b><p>下面的任务仍需提交真实佐证并通过审核，才会进入画像和进度。</p></div>
+        <button className="ghost-action" onClick={() => { setIncomingContext(null); window.history.replaceState({}, "", "/growth-map"); }}>知道了</button>
+      </section>}
       <FourYearJourney semesters={journeyData} currentIndex={currentSemester} selectedIndex={semesterIndex} onSelect={chooseSemester} />
 
       <section className="gm2-profile portal-card">

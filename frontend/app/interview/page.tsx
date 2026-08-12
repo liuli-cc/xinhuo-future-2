@@ -247,7 +247,20 @@ export default function InterviewPage() {
   useEffect(() => {
     apiFetch("/api/interview").then(r => r.json()).then(b => setHistory(b.sessions ?? [])).catch(() => {});
     apiFetch("/api/career/applications").then(r => r.ok ? r.json() : null)
-      .then(b => { if (b?.applications) setCareerApplications(b.applications); }).catch(() => {});
+      .then(b => {
+        if (!b?.applications) return;
+        const applications = b.applications as CareerApplication[];
+        setCareerApplications(applications);
+        const requestedApplication = new URLSearchParams(window.location.search).get("applicationId");
+        const matched = applications.find(item => item.id === requestedApplication);
+        if (!matched) return;
+        setApplicationId(matched.id);
+        setManualJobTitle(matched.title);
+        setManualJobCompany(matched.company);
+        setJobSource("saved");
+        setSetupStep("job");
+        showToast(`已带入“${matched.title}”，确认后即可生成专项面试`);
+      }).catch(() => {});
   }, []);
 
   const format = (v: number) => `${String(Math.floor(v / 60)).padStart(2, "0")}:${String(v % 60).padStart(2, "0")}`;
@@ -823,7 +836,7 @@ export default function InterviewPage() {
   if (pageMode === "setup") {
     return (
       <div ref={studioRef} className="interview-studio-root interview-studio-root--setup">
-      <PortalFrame active="interview" eyebrow="INTERVIEW STUDIO" title="和 liuli 老师，完成一场真实的模拟面试" subtitle="多格式简历识别 · 连续语音追问 · 约 15 分钟 · 结构化复盘">
+      <PortalFrame active="interview" eyebrow="INTERVIEW STUDIO" title="和 liuli 老师，完成一场真实的模拟面试" subtitle="多格式简历识别 · 岗位上下文自动衔接 · 约 15 分钟 · 结构化复盘">
         <div className="voice-interview-setup interview-v3">
           {/* 左侧：进度步骤 */}
           <aside className="setup-steps-panel">
@@ -841,7 +854,7 @@ export default function InterviewPage() {
             </div>
             <div className={`step-item ${setupStep === "ready" ? "active" : ""}`}>
               <span className="step-num">4</span>
-              <div><b>开始实时通话</b><small>liuli老师自然追问，Chrome 自动转写回答</small></div>
+              <div><b>开始实时通话</b><small>liuli 老师自然追问，Chrome 自动转写回答</small></div>
             </div>
           </aside>
 
@@ -892,6 +905,7 @@ export default function InterviewPage() {
 
                 {jobSource === "saved" && careerApplications.length > 0 && (
                   <div className="saved-jobs-list">
+                    {applicationId && <div className="linked-context-note"><b>已从实习就业带入岗位</b><span>确认后，本次提问与报告会关联到该投递记录。</span></div>}
                     {careerApplications.map(app => (
                       <button key={app.id} className={applicationId === app.id ? "active" : ""} onClick={() => selectCareerJob(app.id)}>
                         <b>{app.title}</b><span>{app.company}</span>
@@ -1030,7 +1044,7 @@ export default function InterviewPage() {
           </section>
 
           {/* 虚拟面试官预览 */}
-          <aside className="setup-interviewer-preview">
+          <aside className="setup-interviewer-preview" aria-label="liuli 老师虚拟形象预览">
             <VirtualInterviewer state={interviewerState} />
           </aside>
         </div>
@@ -1076,7 +1090,7 @@ export default function InterviewPage() {
     return (
       <div ref={studioRef} className="interview-studio-root interview-studio-root--active" data-navigation-guard="面试正在进行，离开会结束当前语音与作答状态。确认离开吗？">
       <PortalFrame active="interview" eyebrow={`${jobParsed?.title ?? "通用能力"} INTERVIEW`}
-        title="与liuli老师的实时模拟面试"
+        title="与 liuli 老师的实时模拟面试"
         subtitle="约 15 分钟连续对话 · Chrome 免费实时识别 · 原始录音不保存"
         actions={(
           <div className="live-call-header-actions">
@@ -1355,6 +1369,10 @@ export default function InterviewPage() {
             <ol>
               {(report.actionPlan ?? []).map((item, itemIndex) => <li key={itemIndex}>{item}</li>)}
             </ol>
+            <div className="report-next-actions">
+              <a className="primary-action" href={`/growth-map?from=interview&target=${encodeURIComponent(jobParsed?.title ?? "通用能力")}`}>把改进项带回成长地图</a>
+              <a className="ghost-action" href="/portrait">查看能力画像如何变化</a>
+            </div>
           </section>
 
           {/* 逐题回顾 */}

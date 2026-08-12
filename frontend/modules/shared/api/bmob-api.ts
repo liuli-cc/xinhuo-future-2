@@ -110,6 +110,7 @@ async function normalizeErrorResponse(response: Response) {
 
 function mappedEndpoint(pathname: string) {
   if (pathname === "/api/health") return "/api/health";
+  if (pathname === "/api/health/ready") return "/health/ready";
   // v0.5 exposes the river frontend's complete compatibility contract under
   // the versioned FastAPI namespace. No legacy function gateway fallback.
   return `/api/v1${pathname.slice(4)}`;

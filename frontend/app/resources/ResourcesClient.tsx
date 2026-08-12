@@ -3,9 +3,11 @@
 import { apiFetch } from "@/modules/shared/api/bmob-api";
 
 import { useEffect, useMemo, useState } from "react";
-import PortalFrame from "@/modules/shared/components/PortalFrame";
+import Link from "next/link";
+import PortalFrame, { useStudentProfile } from "@/modules/shared/components/PortalFrame";
 import { AnimatedBarChart, AnimatedDonutChart, VizSkeleton } from "@/modules/shared/components/DataViz";
 import { loadCloudState, saveCloudState } from "@/modules/shared/state/cloud-state-client";
+import { currentSemesterForGrade, linkedGrowthTaskId } from "@/modules/shared/growth/semester";
 
 type Resource = { id: number; title: string; category: string; provider: string; level: string; duration: string; desc: string; tags: string[]; color: string };
 type Faculty = { id: string; name: string; title: string; position: string; mentorLevel: "博士研究生导师" | "硕士研究生导师" | "教师"; researchAreas: string[]; email: string; description: string; profileUrl: string; sourceUpdatedAt: string };
@@ -32,6 +34,7 @@ const statusLabel: Record<DirectoryStatus, string> = {
 };
 
 export default function ResourcesClient() {
+  const profile = useStudentProfile();
   const [mode, setMode] = useState<"resources" | "mentors">("resources");
   const [category, setCategory] = useState("全部");
   const [mentorLevel, setMentorLevel] = useState("全部师资");
@@ -44,6 +47,8 @@ export default function ResourcesClient() {
   const [directory, setDirectory] = useState<Directory | null>(null);
   const [directoryError, setDirectoryError] = useState("");
   const [toast, setToast] = useState("");
+  const [joiningResource, setJoiningResource] = useState<number | null>(null);
+  const [joinedResource, setJoinedResource] = useState<number | null>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -85,10 +90,32 @@ export default function ResourcesClient() {
     const next = saved.includes(id) ? saved.filter(item => item !== id) : [...saved, id];
     setSaved(next); saveCloudState("resource_saved", next).catch(() => setToast("云端收藏保存失败，请稍后重试"));
   };
-  const join = (item: Resource) => {
-    setSelectedResource(null); setToast(`已加入“${item.title}”，可在收藏中查看`);
-    if (!saved.includes(item.id)) toggleSave(item.id);
-    setTimeout(() => setToast(""), 2400);
+  const join = async (item: Resource) => {
+    setJoiningResource(item.id);
+    const semesterIndex = currentSemesterForGrade(profile.grade);
+    try {
+      const response = await apiFetch("/api/growth-path", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          taskId: linkedGrowthTaskId("resource", String(item.id), semesterIndex),
+          semesterIndex,
+          title: `完成：${item.title}`,
+          note: `${item.provider} · ${item.level} · 完成后提交作品、证书或反馈作为佐证`,
+          type: item.category,
+          xp: item.level === "进阶" || item.level === "团队" ? 35 : 25,
+        }),
+      });
+      if (!response.ok) throw new Error("成长任务创建失败");
+      if (!saved.includes(item.id)) toggleSave(item.id);
+      setJoinedResource(item.id);
+      setToast(`“${item.title}”已加入成长地图`);
+      setTimeout(() => setToast(""), 2600);
+    } catch (reason) {
+      setToast(reason instanceof Error ? reason.message : "加入失败，请稍后重试");
+    } finally {
+      setJoiningResource(null);
+    }
   };
   const sourceLinks = directory ? [
     { href: directory.sourceUrl, label: "学院公开目录 ↗" },
@@ -151,7 +178,7 @@ export default function ResourcesClient() {
       {directory && <aside className="mentor-source"><div><b>数据来源</b><span>更新于 {directory.updatedAt} · {statusLabel[directory.sourceStatus]} · 仅使用学院官网公开信息</span></div><div>{sourceLinks.map(item => <a key={item.href} href={item.href} target="_blank" rel="noreferrer">{item.label}</a>)}</div></aside>}
     </>}
 
-    {selectedResource && <div className="modal-backdrop" onMouseDown={() => setSelectedResource(null)}><section className="portal-modal resource-modal" onMouseDown={event => event.stopPropagation()}><button className="modal-close" onClick={() => setSelectedResource(null)}>×</button><span className="modal-kicker">{selectedResource.category} · 公开成长资源</span><h2>{selectedResource.title}</h2><p>{selectedResource.desc}</p><div className="resource-detail"><div><span>提供方</span><b>{selectedResource.provider}</b></div><div><span>难度</span><b>{selectedResource.level}</b></div><div><span>时间</span><b>{selectedResource.duration}</b></div></div><h3>使用建议</h3><p>先确认它与你的真实目标和时间安排相符；完成后提交可核验成果，审核通过才会进入成长进度。</p><button className="modal-submit" onClick={() => join(selectedResource)}>加入我的收藏</button></section></div>}
+      {selectedResource && <div className="modal-backdrop" onMouseDown={() => !joiningResource && setSelectedResource(null)}><section className="portal-modal resource-modal" onMouseDown={event => event.stopPropagation()}><button className="modal-close" onClick={() => setSelectedResource(null)} disabled={Boolean(joiningResource)}>×</button><span className="modal-kicker">{selectedResource.category} · 公开成长资源</span><h2>{selectedResource.title}</h2><p>{selectedResource.desc}</p><div className="resource-detail"><div><span>提供方</span><b>{selectedResource.provider}</b></div><div><span>难度</span><b>{selectedResource.level}</b></div><div><span>时间</span><b>{selectedResource.duration}</b></div></div><h3>使用建议</h3><p>加入后会同时收藏并创建成长任务；完成后提交可核验成果，审核通过才会进入成长进度。</p>{joinedResource === selectedResource.id ? <Link className="modal-submit" href={`/growth-map?from=resources&target=${encodeURIComponent(selectedResource.title)}`}>已加入，前往成长地图 →</Link> : <button className="modal-submit" disabled={joiningResource === selectedResource.id} onClick={() => void join(selectedResource)}>{joiningResource === selectedResource.id ? "正在加入…" : "加入成长地图"}</button>}</section></div>}
     {selectedFaculty && <div className="modal-backdrop" onMouseDown={() => setSelectedFaculty(null)}><section className="portal-modal mentor-modal" onMouseDown={event => event.stopPropagation()}><button className="modal-close" onClick={() => setSelectedFaculty(null)}>×</button><div className="mentor-modal-profile"><span className="mentor-avatar large">{selectedFaculty.name.slice(0, 1)}</span><div><span className="modal-kicker">{selectedFaculty.mentorLevel}</span><h2>{selectedFaculty.name}</h2><p>{[selectedFaculty.title, selectedFaculty.position].filter(Boolean).join(" · ") || "学院官网公开师资条目"}</p></div></div>{selectedFaculty.researchAreas.length > 0 && <div className="mentor-modal-section"><h3>研究方向</h3><div className="mentor-tags">{selectedFaculty.researchAreas.map(area => <span key={area}>{area}</span>)}</div></div>}<div className="mentor-modal-section"><h3>公开资料说明</h3><p>{selectedFaculty.description}</p></div>{selectedFaculty.email && <div className="mentor-contact"><span>公开邮箱</span><a href={`mailto:${selectedFaculty.email}`}>{selectedFaculty.email}</a></div>}{selectedFaculty.profileUrl && <a className="modal-submit mentor-profile-link" href={selectedFaculty.profileUrl} target="_blank" rel="noreferrer">前往学院官网查看完整资料 ↗</a>}<small className="mentor-modal-note">资料来源：学院官网公开页面 · 更新于 {selectedFaculty.sourceUpdatedAt}</small></section></div>}
     {toast && <div className="portal-toast">✓ {toast}</div>}
   </PortalFrame>;

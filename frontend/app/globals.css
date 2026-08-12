@@ -1403,7 +1403,7 @@ a { color: inherit; text-decoration: none; }
 .decision-actions aside strong { color: var(--accent); font-size: 25px; }
 .decision-actions aside small { color: var(--muted); font-size: 8px; }
 .decision-actions aside button { margin-top: 6px; padding: 7px; color: var(--ink-dim); background: transparent; border: 1px solid var(--line); border-radius: 6px; font-size: 8px; }
-.decision-actions aside button:first-of-type { color: white; background: var(--accent); border-color: var(--accent); }
+.decision-actions aside .decision-add-action { color: white; background: var(--accent); border-color: var(--accent); }
 
 .account-data-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
 .account-data-card { padding: 20px; }
@@ -1747,7 +1747,7 @@ p { text-wrap: pretty; }
 .gm2-add > button,
 .ep-next button,
 .ep-empty button,
-.decision-actions aside button:first-of-type,
+.decision-actions aside .decision-add-action,
 .account-export,
 .staff-management form > button {
   color: var(--accent-ink);
@@ -1766,7 +1766,7 @@ p { text-wrap: pretty; }
 .gm2-add > button:hover,
 .ep-next button:hover,
 .ep-empty button:hover,
-.decision-actions aside button:first-of-type:hover,
+.decision-actions aside .decision-add-action:hover,
 .account-export:hover,
 .staff-management form > button:hover {
   opacity: 1;
@@ -3142,7 +3142,7 @@ p { text-wrap: pretty; }
 
 /* ═══════════════════════════════════════════
    INTERVIEW STUDIO V3
-   Restrained product surface, local OCR and 3D mentor
+   Restrained product surface, local OCR and stateful mentor
    ═══════════════════════════════════════════ */
 .voice-interview-setup.interview-v3 {
   grid-template-columns: 190px minmax(520px, 1fr) 270px;
@@ -3171,8 +3171,8 @@ p { text-wrap: pretty; }
 .interview-v3 .setup-card {
   min-height: 500px;
   padding: 28px;
-  border-color: oklch(0.9 0.03 255 / .13);
-  background: oklch(0.15 0.021 258);
+  border-color: var(--line);
+  background: var(--surface-card);
 }
 .interview-v3 .card-heading { margin-bottom: 22px; }
 .interview-v3 .card-heading span { color: var(--muted); font-size: .65rem; letter-spacing: .08em; }
@@ -3214,18 +3214,40 @@ p { text-wrap: pretty; }
   border-radius: 14px;
   background: var(--surface);
 }
-.mentor-3d-stage {
+.mentor-portrait-stage {
+  position: relative;
   width: 100%;
-  min-height: 330px;
+  min-height: 344px;
+  aspect-ratio: 4 / 5;
   border-radius: 12px;
   overflow: hidden;
-  background: oklch(0.13 0.026 262);
+  isolation: isolate;
+  background: #13263d;
 }
-.mentor-3d-stage canvas { display: block; width: 100%; height: 100%; }
+.mentor-portrait-media { position: absolute; inset: 0; z-index: 1; transform-origin: 50% 62%; will-change: transform; }
+.mentor-portrait-media::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 43%, rgba(8, 20, 35, .16) 70%, rgba(8, 20, 35, .82)); pointer-events: none; }
+.mentor-portrait-media img { width: 100%; height: 100%; display: block; object-fit: cover; object-position: 50% 22%; transition: transform .32s var(--ease-out-expo), filter .32s var(--ease-out-expo); }
+.mentor-portrait-halo { position: absolute; z-index: 0; width: 72%; aspect-ratio: 1; right: -20%; top: 10%; border-radius: 50%; background: radial-gradient(circle, rgba(65, 137, 220, .42), transparent 68%); filter: blur(10px); pointer-events: none; will-change: transform, opacity; }
+.mentor-portrait-copy { position: absolute; z-index: 3; top: 15px; left: 15px; display: grid; gap: 3px; max-width: calc(100% - 30px); color: white; text-shadow: 0 1px 12px rgba(4, 13, 25, .42); }
+.mentor-portrait-copy > span { color: rgba(224, 239, 255, .78); font-size: .56rem; font-weight: 760; letter-spacing: .11em; }
+.mentor-portrait-copy > b { font-size: .95rem; letter-spacing: -.015em; }
+.mentor-portrait-copy > small { color: rgba(239, 246, 255, .82); font-size: .62rem; }
+.mentor-signal { position: absolute; z-index: 4; left: 16px; bottom: 16px; height: 30px; display: flex; align-items: center; gap: 3px; }
+.mentor-signal i { width: 3px; min-height: 5px; display: block; border-radius: 999px; background: rgba(224, 241, 255, .9); transform-origin: 50% 100%; will-change: transform, opacity; }
+.mentor-virtual-badge { position: absolute; z-index: 4; right: 12px; bottom: 14px; padding: 5px 7px; border: 1px solid rgba(255, 255, 255, .2); border-radius: 6px; color: rgba(242, 247, 255, .78); background: rgba(7, 19, 34, .5); backdrop-filter: blur(8px); font-size: .54rem; letter-spacing: .02em; }
+.mentor-state-listening .mentor-portrait-media img { transform: scale(1.015); filter: saturate(1.03); }
+.mentor-state-thinking .mentor-portrait-media img { transform: scale(1.008) translateX(-.25%); }
+.mentor-state-scoring .mentor-portrait-media img { filter: saturate(.9) contrast(1.03); }
+.mentor-state-speaking .mentor-signal i, .mentor-state-listening .mentor-signal i { animation: mentor-signal 780ms ease-in-out infinite alternate; }
+@keyframes mentor-signal { to { transform: scaleY(.48); opacity: .55; } }
 .mentor-identity { margin-top: 0; }
 .mentor-identity strong { font-size: 1rem; letter-spacing: -.01em; }
 .mentor-identity span { font-size: .68rem; }
 .virtual-interviewer .interviewer-label { font-size: .7rem; }
+.linked-context-note { display: grid; gap: 3px; margin-bottom: 10px; padding: 11px 12px; border-left: 3px solid var(--accent); border-radius: 0 8px 8px 0; background: var(--accent-soft); }
+.linked-context-note b { color: var(--ink); font-size: .72rem; }
+.linked-context-note span { color: var(--ink-dim); font-size: .64rem; }
+.report-next-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
 
 .model-connect-panel {
   margin: 0 0 18px;
@@ -3403,9 +3425,9 @@ p { text-wrap: pretty; }
 
 /* ── Interview studio refinement: calm, state-led motion ── */
 .interview-studio-root {
-  --studio-quiet: oklch(0.13 0.02 258);
-  --studio-raised: oklch(0.18 0.028 258);
-  --studio-focus: oklch(0.72 0.15 250 / .16);
+  --studio-quiet: var(--surface-card);
+  --studio-raised: var(--bg-alt);
+  --studio-focus: var(--accent-soft);
 }
 .interview-studio-root--setup .voice-interview-setup {
   max-width: 1280px;
@@ -3430,11 +3452,11 @@ p { text-wrap: pretty; }
 }
 .interview-studio-root--setup .setup-card {
   background: var(--studio-quiet);
-  border-color: oklch(0.9 0.03 255 / .15);
+  border-color: var(--line);
 }
 .interview-studio-root--setup .setup-interviewer-preview {
   background: var(--studio-quiet);
-  border-color: oklch(0.9 0.03 255 / .15);
+  border-color: var(--line);
 }
 .interview-studio-root--setup .upload-zone {
   position: relative;
@@ -3462,8 +3484,8 @@ p { text-wrap: pretty; }
 }
 .interview-studio-root--active .live-mentor-panel {
   position: relative;
-  background: linear-gradient(160deg, oklch(0.17 0.032 258), var(--studio-quiet) 58%);
-  border-color: oklch(0.72 0.15 250 / .24);
+  background: linear-gradient(160deg, var(--surface-elevated), var(--studio-quiet) 58%);
+  border-color: color-mix(in oklab, var(--accent) 22%, var(--line));
 }
 .interview-studio-root--active .live-mentor-panel::before {
   content: "";
@@ -3474,20 +3496,20 @@ p { text-wrap: pretty; }
   top: 96px;
   z-index: 0;
   border-radius: 50%;
-  background: oklch(0.72 0.15 250 / .08);
+  background: var(--accent-soft);
   filter: blur(2px);
   pointer-events: none;
 }
 .interview-studio-root--active .live-mentor-panel > * { position: relative; z-index: 1; }
 .interview-studio-root--active .live-conversation-panel {
   background: var(--studio-quiet);
-  border-color: oklch(0.9 0.03 255 / .15);
+  border-color: var(--line);
 }
 .interview-studio-root--active .live-conversation-header {
-  background: oklch(0.18 0.026 258 / .58);
+  background: var(--surface-elevated);
 }
 .interview-studio-root--active .live-transcript-feed {
-  background: oklch(0.115 0.018 258 / .5);
+  background: var(--surface-card);
 }
 .interview-studio-root--active .live-transcript-entry {
   will-change: transform, opacity;
@@ -3500,7 +3522,7 @@ p { text-wrap: pretty; }
   border-color: oklch(0.72 0.15 250 / .26);
 }
 .interview-studio-root--active .live-turn-console {
-  background: oklch(0.145 0.022 258);
+  background: var(--bg-alt);
 }
 .interview-studio-root--active .live-speech-status.status-hearing {
   border-radius: 10px;
@@ -3515,7 +3537,7 @@ p { text-wrap: pretty; }
 .report-dimension-fill { will-change: transform; }
 .interview-studio-root--report .report-hero-v2,
 .interview-studio-root--report .report-expression {
-  border-color: oklch(0.9 0.03 255 / .16);
+  border-color: var(--line);
 }
 .interview-studio-root--report .report-dimensions .dim-card {
   min-height: 104px;
@@ -3531,4 +3553,5 @@ p { text-wrap: pretty; }
     transform: none !important;
   }
   html:not([data-motion-preference="full"]) .interview-studio-root--active .live-mentor-panel::before { display: none; }
+  html:not([data-motion-preference="full"]) .mentor-signal i { animation: none !important; }
 }
