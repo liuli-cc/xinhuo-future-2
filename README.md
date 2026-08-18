@@ -1,6 +1,13 @@
-# 薪火未来 v0.6.0
+# 薪火未来 v0.7.0
 
 面向大学生的证据型成长、岗位匹配与模拟面试平台。当前版本已将河流版前端完整接到 **FastAPI + MySQL 模块化单体**，旧 CloudBase 函数仅保留作迁移对照，不参与运行。
+
+## v0.7 已实现
+
+- 新增“内师公开信息”入口：按栏目和关键词查询内蒙古师范大学主站公开信息，所有条目保留官方原文链接。
+- 新增 `GET /api/v1/imnu/public-content` 公开索引 API，以及可复跑的 `backend/scripts/sync_imnu_public_index.py` 同步脚本。
+- 索引仅保留公开 HTML 页的标题、分类、日期线索、摘要与来源链接；不镜像正文、图片、附件、登录系统或独立子站内容。
+- 统一前后端发布版本为 `0.7.0`。
 
 ## v0.6 已实现
 
@@ -71,6 +78,7 @@ npm test
 ## 文档
 
 - [最新使用手册](docs/USAGE.md)
+- [内师官网公开信息索引说明](docs/IMNU-PUBLIC-INDEX.md)
 - [v0.6 整体体验升级记录](docs/V0.6-EXPERIENCE-UPGRADE.md)
 - [数据迁移手册](docs/DATA-MIGRATION-RUNBOOK.md)
 - [备份与恢复](docs/BACKUP-RESTORE.md)

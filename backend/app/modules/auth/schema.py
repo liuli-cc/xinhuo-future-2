@@ -60,6 +60,6 @@ class MeResponse(BaseModel):
 class HealthResponse(BaseModel):
     ok: bool = True
     service: str = "xinhuo-api"
-    version: str = "0.5.0"
+    version: str = "0.7.0"
     storage: str = "mysql"
     mode: str = "fastapi"
