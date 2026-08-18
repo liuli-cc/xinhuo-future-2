@@ -26,7 +26,7 @@ test("growth-river frontend keeps its modular shell and explicit FastAPI boundar
   assert.doesNotMatch(text("modules/shared/api/bmob-api.ts"), /CloudBase HTTP function/);
 });
 
-test("v0.6 experience upgrade links core student workflows without changing backend contracts", () => {
+test("v0.7 release keeps core student workflows and public-source boundaries", () => {
   const packageJson = JSON.parse(text("package.json"));
   const interviewer = text("modules/group-1-interview/components/VirtualInterviewer.tsx");
   const frame = text("modules/shared/components/PortalFrame.tsx");
@@ -35,7 +35,7 @@ test("v0.6 experience upgrade links core student workflows without changing back
   const decision = text("app/ai/page.tsx");
   const resources = text("app/resources/ResourcesClient.tsx");
 
-  assert.equal(packageJson.version, "0.6.0");
+  assert.equal(packageJson.version, "0.7.0");
   assert.equal(packageJson.dependencies.three, undefined);
   assert.equal(packageJson.devDependencies["@types/three"], undefined);
   assert.match(interviewer, /liuli-mentor-v2\.jpg/);
@@ -48,4 +48,15 @@ test("v0.6 experience upgrade links core student workflows without changing back
   assert.match(interview, /\/growth-map\?from=interview/);
   assert.match(decision, /linkedGrowthTaskId\("decision"/);
   assert.match(resources, /linkedGrowthTaskId\("resource"/);
+  assert.match(resources, /内师公开信息/);
+  assert.match(resources, /查看官网原文/);
+});
+
+test("IMNU public index contains attributable, on-domain source links only", () => {
+  const index = JSON.parse(text("data/imnu-public-index.json"));
+  assert.equal(index.schemaVersion, 1);
+  assert.equal(index.source.homeUrl, "https://www.imnu.edu.cn/");
+  assert.ok(index.items.length > 0);
+  assert.ok(index.items.every(item => item.sourceUrl.startsWith("https://www.imnu.edu.cn/")));
+  assert.ok(index.items.every(item => item.title && item.section && item.sourceHost === "www.imnu.edu.cn"));
 });

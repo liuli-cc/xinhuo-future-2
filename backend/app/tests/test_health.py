@@ -49,4 +49,17 @@ async def test_openapi_schema(client: AsyncClient):
     assert "/api/v1/auth/me" in paths
     assert "/api/v1/reference/majors" in paths
     assert "/api/v1/organization/colleges" in paths
+    assert "/api/v1/imnu/public-content" in paths
     assert "/health" in paths
+
+
+@pytest.mark.unit
+@pytest.mark.anyio
+async def test_imnu_public_content_index(client: AsyncClient):
+    response = await client.get("/api/v1/imnu/public-content", params={"section": "校园新闻"})
+    assert response.status_code == 200
+    data = response.json()
+    assert data["source"]["homeUrl"] == "https://www.imnu.edu.cn/"
+    assert data["total"] > 0
+    assert all(item["section"] == "校园新闻" for item in data["data"])
+    assert all(item["sourceUrl"].startswith("https://www.imnu.edu.cn/") for item in data["data"])
