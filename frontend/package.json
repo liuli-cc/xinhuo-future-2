@@ -7,6 +7,8 @@
   },
   "scripts": {
     "postinstall": "node scripts/copy-ocr-assets.mjs",
+    "asr:setup": "node scripts/setup-sherpa-asr.mjs",
+    "asr:start": "node scripts/serve-sherpa-asr.mjs",
     "dev": "next dev",
     "build": "next build",
     "start": "node scripts/serve-static.mjs",
@@ -26,7 +28,9 @@
     "pdfjs-dist": "^6.2.108",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "tesseract.js": "^7.0.0"
+    "sherpa-onnx-node": "^1.13.6",
+    "tesseract.js": "^7.0.0",
+    "ws": "^8.21.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.2.1",

@@ -2,13 +2,13 @@
 
 import { useGSAP } from "@gsap/react";
 import { gsap } from "gsap";
-import Image from "next/image";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useMotionPreference } from "@/modules/shared/motion/motion-preference";
 
 gsap.registerPlugin(useGSAP);
 
 export type InterviewerState = "idle" | "thinking" | "speaking" | "listening" | "scoring";
+type MascotPose = "wave" | "walk" | "listen" | "think" | "speak" | "happy";
 
 interface VirtualInterviewerProps {
   state: InterviewerState;
@@ -16,12 +16,12 @@ interface VirtualInterviewerProps {
   ttsSource?: "tencent" | "browser" | "none";
 }
 
-const stateCopy: Record<InterviewerState, { label: string; detail: string }> = {
-  idle: { label: "准备就绪", detail: "可以按自己的节奏开始" },
-  thinking: { label: "正在整理思路", detail: "结合材料准备下一步问题" },
-  speaking: { label: "正在提问", detail: "先听完问题，再组织回答" },
-  listening: { label: "正在倾听", detail: "你的回答会实时转写" },
-  scoring: { label: "正在复盘", detail: "从回答中提取证据与改进点" },
+const stateCopy: Record<InterviewerState, { label: string; detail: string; pose: MascotPose }> = {
+  idle: { label: "准备就绪", detail: "直接开口即可开始", pose: "wave" },
+  thinking: { label: "正在思考", detail: "根据有效内容组织追问", pose: "think" },
+  speaking: { label: "正在提问", detail: "麦克风持续开启，随时可以插话", pose: "speak" },
+  listening: { label: "正在倾听", detail: "实时识别并校正中文表达", pose: "listen" },
+  scoring: { label: "完成复盘", detail: "正在生成证据与改进建议", pose: "happy" },
 };
 
 export default function VirtualInterviewer({
@@ -30,46 +30,86 @@ export default function VirtualInterviewer({
   ttsSource = "none",
 }: VirtualInterviewerProps) {
   const rootRef = useRef<HTMLDivElement>(null);
+  const previousStateRef = useRef<InterviewerState | null>(null);
+  const [pose, setPose] = useState<MascotPose>(stateCopy[state].pose);
   const { reducedMotion } = useMotionPreference();
 
   useGSAP(() => {
     const root = rootRef.current;
     if (!root) return;
-    const portrait = root.querySelector<HTMLElement>("[data-mentor-portrait]");
+    const mascot = root.querySelector<HTMLElement>("[data-mentor-mascot]");
     const halo = root.querySelector<HTMLElement>("[data-mentor-halo]");
     const signals = root.querySelectorAll<HTMLElement>("[data-mentor-signal]");
-    gsap.killTweensOf([portrait, halo, signals]);
+    const thoughtDots = root.querySelectorAll<HTMLElement>("[data-thought-dot]");
+    const sparkles = root.querySelectorAll<HTMLElement>("[data-mentor-sparkle]");
+    const targetPose = stateCopy[state].pose;
+    gsap.killTweensOf([mascot, halo, signals, thoughtDots, sparkles]);
 
     if (reducedMotion) {
-      gsap.set([portrait, halo, signals], { clearProps: "all" });
+      setPose(targetPose);
+      gsap.set([mascot, halo, signals, thoughtDots, sparkles], { clearProps: "all" });
+      previousStateRef.current = state;
       return;
     }
 
-    gsap.fromTo(portrait, {
-      y: state === "listening" ? 2 : 5,
-      rotate: state === "thinking" ? -0.45 : 0,
-    }, {
-      y: 0,
-      rotate: 0,
-      duration: 0.38,
-      ease: "power3.out",
-      overwrite: "auto",
-    });
-    gsap.fromTo(halo, { scale: 0.94, autoAlpha: 0.35 }, {
-      scale: 1,
-      autoAlpha: state === "idle" ? 0.42 : 0.78,
+    const changed = previousStateRef.current !== null && previousStateRef.current !== state;
+    const timeline = gsap.timeline({ defaults: { ease: "power2.out" } });
+    timeline.addLabel("enter", 0);
+    if (changed) {
+      setPose("walk");
+      timeline
+        .fromTo(mascot, { x: -9, y: 2, rotation: -1.5 }, { x: 8, y: -2, rotation: 1.2, duration: 0.2 }, "enter")
+        .to(mascot, { x: 0, y: 0, rotation: 0, duration: 0.2 })
+        .call(() => setPose(targetPose));
+    } else {
+      setPose(targetPose);
+      timeline.fromTo(mascot, { y: 5, scale: 0.985 }, { y: 0, scale: 1, duration: 0.34 }, "enter");
+    }
+
+    timeline.fromTo(halo, { scale: 0.9, autoAlpha: 0.3 }, {
+      scale: state === "scoring" ? 1.12 : 1,
+      autoAlpha: state === "idle" ? 0.4 : 0.8,
       duration: 0.42,
-      ease: "power3.out",
-      overwrite: "auto",
-    });
-    gsap.fromTo(signals, { scaleY: 0.25, autoAlpha: 0.32 }, {
-      scaleY: state === "listening" || state === "speaking" ? 1 : 0.42,
+    }, "enter");
+    timeline.fromTo(signals, { scaleY: 0.2, autoAlpha: 0.3 }, {
+      scaleY: state === "listening" || state === "speaking" ? 1 : 0.45,
       autoAlpha: state === "listening" || state === "speaking" ? 1 : 0.45,
-      duration: 0.25,
+      duration: 0.24,
       stagger: 0.025,
-      ease: "power2.out",
-      overwrite: "auto",
-    });
+    }, "enter+=0.08");
+
+    if (state === "thinking") {
+      timeline
+        .fromTo(thoughtDots, { autoAlpha: 0, scale: 0.3, y: 8 }, {
+          autoAlpha: 1,
+          scale: 1,
+          y: 0,
+          duration: 0.3,
+          stagger: 0.12,
+          ease: "back.out(1.7)",
+        }, ">-0.08")
+        .to(mascot, { rotation: -1.5, duration: 0.7, repeat: -1, yoyo: true, ease: "sine.inOut" }, ">-0.1");
+    }
+    if (state === "listening") {
+      timeline.to(mascot, { scale: 1.018, duration: 0.62, repeat: -1, yoyo: true, ease: "sine.inOut" }, ">-0.1");
+    }
+    if (state === "speaking") {
+      timeline.to(mascot, { x: 3, rotation: 0.7, duration: 0.48, repeat: -1, yoyo: true, ease: "sine.inOut" }, ">-0.12");
+    }
+    if (state === "scoring") {
+      timeline
+        .fromTo(mascot, { y: 5, scale: 0.96 }, { y: -5, scale: 1.035, duration: 0.36, ease: "back.out(1.8)" }, ">-0.05")
+        .to(mascot, { y: 0, scale: 1, duration: 0.28 })
+        .fromTo(sparkles, { autoAlpha: 0, scale: 0, y: 8 }, {
+          autoAlpha: 1,
+          scale: 1,
+          y: 0,
+          duration: 0.36,
+          stagger: 0.08,
+          ease: "back.out(2)",
+        }, "<");
+    }
+    previousStateRef.current = state;
   }, { scope: rootRef, dependencies: [state, reducedMotion], revertOnUpdate: true });
 
   const status = stateCopy[state];
@@ -80,19 +120,18 @@ export default function VirtualInterviewer({
       <div className="mentor-portrait-stage">
         <span className="mentor-portrait-halo" data-mentor-halo aria-hidden="true" />
         <div className="mentor-portrait-copy">
-          <span>LIULI · CAREER MENTOR</span>
+          <span>LIULI · AI CAREER MENTOR</span>
           <b>{status.label}</b>
           <small>{status.detail}</small>
         </div>
-        <div className="mentor-portrait-media" data-mentor-portrait>
-          <Image
-            src="/liuli-mentor-v2.jpg"
-            alt="liuli 老师虚拟导师形象"
-            width={1050}
-            height={1400}
-            priority
-            sizes="(max-width: 900px) 70vw, 320px"
-          />
+        <div className="mentor-mascot-wrap" aria-label={`可爱 AI 导师正在${status.label}`} role="img">
+          <div className={`mentor-mascot-sprite pose-${pose}`} data-mentor-mascot />
+          <div className="mentor-thought-dots" aria-hidden="true">
+            <i data-thought-dot /><i data-thought-dot /><i data-thought-dot />
+          </div>
+          <div className="mentor-sparkles" aria-hidden="true">
+            <i data-mentor-sparkle>✦</i><i data-mentor-sparkle>✦</i><i data-mentor-sparkle>✦</i>
+          </div>
         </div>
         <div className="mentor-signal" aria-hidden="true">
           {Array.from({ length: 11 }).map((_, index) => (
@@ -106,11 +145,11 @@ export default function VirtualInterviewer({
             />
           ))}
         </div>
-        <span className="mentor-virtual-badge">AI 虚拟形象 · 非真人</span>
+        <span className="mentor-virtual-badge">原创 AI 卡通形象 · 非真人</span>
       </div>
       <div className="mentor-identity">
         <strong>liuli 老师</strong>
-        <span>青年职业导师 · 状态实时反馈</span>
+        <span>AI 面试导师 · 动作随对话进度变化</span>
       </div>
       <div className="interviewer-label" role="status" aria-live="polite">
         <span className={`indicator state-${state}`} />
