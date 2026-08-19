@@ -41,6 +41,6 @@ test("unresolved roles do not flash access-denied states", async () => {
 
 test("interview export contains the replacement mentor and transparent identity label", async () => {
   const html = await readFile(`${projectRoot}/out/interview.html`, "utf8");
-  assert.match(html, /liuli-mentor-v2\.jpg/);
-  assert.match(html, /AI 虚拟形象 · 非真人/);
+  assert.match(html, /mentor-mascot-sprite pose-wave/);
+  assert.match(html, /原创 AI 卡通形象 · 非真人/);
 });

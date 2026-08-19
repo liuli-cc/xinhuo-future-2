@@ -16,7 +16,9 @@ test("growth-river frontend keeps its modular shell and explicit FastAPI boundar
     "modules/shared/components/GrowthCommandPalette.tsx",
     "modules/shared/growth/semester.ts",
     "modules/shared/motion/RouteMotionProvider.tsx",
-    "public/liuli-mentor-v2.jpg",
+    "public/liuli-ai-mentor-sprite-v1.png",
+    "scripts/serve-sherpa-asr.mjs",
+    "scripts/setup-sherpa-asr.mjs",
   ]) assert.ok(existsSync(new URL(relative, root)), `${relative} missing`);
 
   assert.match(text("app/layout.tsx"), /RouteMotionProvider/);
@@ -29,6 +31,7 @@ test("growth-river frontend keeps its modular shell and explicit FastAPI boundar
 test("v0.7 release keeps core student workflows and public-source boundaries", () => {
   const packageJson = JSON.parse(text("package.json"));
   const interviewer = text("modules/group-1-interview/components/VirtualInterviewer.tsx");
+  const styles = text("app/globals.css");
   const frame = text("modules/shared/components/PortalFrame.tsx");
   const interview = text("app/interview/page.tsx");
   const career = text("modules/group-3-career/components/CareerWorkbench.tsx");
@@ -38,13 +41,21 @@ test("v0.7 release keeps core student workflows and public-source boundaries", (
   assert.equal(packageJson.version, "0.7.0");
   assert.equal(packageJson.dependencies.three, undefined);
   assert.equal(packageJson.devDependencies["@types/three"], undefined);
-  assert.match(interviewer, /liuli-mentor-v2\.jpg/);
-  assert.match(interviewer, /AI 虚拟形象 · 非真人/);
+  assert.match(packageJson.dependencies["sherpa-onnx-node"], /^\^1\./);
+  assert.match(styles, /liuli-ai-mentor-sprite-v1\.png/);
+  assert.match(interviewer, /原创 AI 卡通形象 · 非真人/);
+  assert.match(styles, /\.mentor-mascot-sprite\.pose-wave/);
+  assert.match(styles, /\.mentor-mascot-sprite\.pose-walk/);
+  assert.match(styles, /\.mentor-mascot-sprite\.pose-think/);
+  assert.match(styles, /\.mentor-mascot-sprite\.pose-happy/);
   assert.doesNotMatch(interviewer, /from "three"/);
   assert.match(frame, /GrowthCommandPalette/);
   assert.match(frame, /apiFetch\("\/api\/health\/ready"/);
   assert.match(career, /\/interview\?applicationId=/);
   assert.match(interview, /get\("applicationId"\)/);
+  assert.match(interview, /assistantTranscript=\{currentQuestion\}/);
+  assert.match(interview, /无需按键；语义完整或自然停顿后自动继续/);
+  assert.match(interview, /sherpa-onnx 本地中文/);
   assert.match(interview, /\/growth-map\?from=interview/);
   assert.match(decision, /linkedGrowthTaskId\("decision"/);
   assert.match(resources, /linkedGrowthTaskId\("resource"/);

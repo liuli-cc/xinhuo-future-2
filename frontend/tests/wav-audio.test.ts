@@ -40,3 +40,15 @@ test("derives real thinking, speech, pause and volume statistics", () => {
   assert.ok(stats.averageVolume > 0);
   assert.ok(stats.volumeVariance >= 0);
 });
+
+test("adaptive voice statistics keep quiet speech above a quiet noise floor", () => {
+  const frames = [
+    { atMs: 0, durationMs: 100, rms: 0.001 },
+    { atMs: 100, durationMs: 100, rms: 0.0012 },
+    { atMs: 200, durationMs: 100, rms: 0.0065 },
+    { atMs: 300, durationMs: 100, rms: 0.007 },
+  ];
+  const stats = analyzeVoiceFrames(frames);
+  assert.equal(stats.thinkingBeforeAnswerMs, 200);
+  assert.equal(stats.activeSpeechMs, 200);
+});

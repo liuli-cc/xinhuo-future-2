@@ -70,8 +70,10 @@ export function encodePcm16Wav(samples: Float32Array, sampleRate = 16_000): Arra
 }
 
 export function analyzeVoiceFrames(frames: VoiceFrame[], sampleRate = 16_000): VoiceCaptureStats {
-  const threshold = 0.018;
   const sorted = frames.filter(frame => Number.isFinite(frame.rms) && frame.durationMs > 0);
+  const rmsDistribution = sorted.map(frame => frame.rms).sort((left, right) => left - right);
+  const noiseFloor = rmsDistribution[Math.floor(rmsDistribution.length * 0.2)] ?? 0.002;
+  const threshold = Math.max(0.0045, Math.min(0.018, noiseFloor * 2.15));
   const volumeSamples = sorted.map(frame => Math.min(100, Math.round(frame.rms * 400)));
   const speechFrames = sorted.filter(frame => frame.rms >= threshold);
   const firstSpeechAt = speechFrames[0]?.atMs ?? 0;

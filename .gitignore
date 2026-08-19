@@ -20,6 +20,7 @@
 /frontend/.next/
 /frontend/out/
 /frontend/public/ocr/
+/frontend/.local-asr/
 
 # misc
 .DS_Store
