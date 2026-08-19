@@ -26,6 +26,8 @@ export type AnswerEvidence = {
 export type ScoredAnswer = {
   question: string;
   answer: string;
+  rawTranscript?: string;
+  transcriptCleanup?: { changed: boolean; removedFillers: string[] };
   seconds: number;
   score: number;
   dimensions: ScoreDimensions;

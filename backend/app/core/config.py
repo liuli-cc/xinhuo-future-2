@@ -17,7 +17,7 @@ class Settings(BaseSettings):
 
     # ── Application ──────────────────────────────────────────
     APP_NAME: str = "xinhuo-api"
-    APP_VERSION: str = "0.5.0"
+    APP_VERSION: str = "0.7.0"
     DEBUG: bool = False
     ENVIRONMENT: str = "development"  # development | staging | production
 

@@ -17,6 +17,7 @@ import {
 } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { currentSemesterForGrade } from "@/modules/shared/growth/semester";
 
 const features = [
   { id: "map", title: "成长地图", desc: "展开大学四年的阶段路径与真实任务。", icon: MapTrifold, href: "/growth-map", className: "wide" },
@@ -41,15 +42,6 @@ const journeyThemes = [
   "完成毕业，平稳走向下一站",
 ];
 
-function getCurrentSemester(grade: string) {
-  const entryYear = Number(grade.match(/\d{4}/)?.[0]);
-  if (!entryYear) return 0;
-  const now = new Date();
-  const academicYear = now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1;
-  const term = now.getMonth() >= 8 ? 0 : 1;
-  return Math.max(0, Math.min(7, (academicYear - entryYear) * 2 + term));
-}
-
 type DashboardStats = {
   verifiedTasks: number;
   pendingTasks: number;
@@ -63,7 +55,7 @@ const initialStats: DashboardStats = { verifiedTasks: 0, pendingTasks: 0, abilit
 
 export default function Dashboard() {
   const profile = useStudentProfile();
-  const currentSemester = getCurrentSemester(profile.grade);
+  const currentSemester = currentSemesterForGrade(profile.grade);
   const [selectedJourneySemester, setSelectedJourneySemester] = useState(currentSemester);
   const [greeting, setGreeting] = useState("");
   const [dateStr, setDateStr] = useState("");

@@ -1,11 +1,14 @@
 "use client";
 
-import * as THREE from "three";
+import { useGSAP } from "@gsap/react";
 import { gsap } from "gsap";
+import { useRef, useState } from "react";
 import { useMotionPreference } from "@/modules/shared/motion/motion-preference";
-import { useEffect, useRef } from "react";
+
+gsap.registerPlugin(useGSAP);
 
 export type InterviewerState = "idle" | "thinking" | "speaking" | "listening" | "scoring";
+type MascotPose = "wave" | "walk" | "listen" | "think" | "speak" | "happy";
 
 interface VirtualInterviewerProps {
   state: InterviewerState;
@@ -13,349 +16,146 @@ interface VirtualInterviewerProps {
   ttsSource?: "tencent" | "browser" | "none";
 }
 
-type Rig = {
-  root: THREE.Group;
-  head: THREE.Group;
-  leftArm: THREE.Group;
-  rightArm: THREE.Group;
-  eyes: THREE.Mesh[];
+const stateCopy: Record<InterviewerState, { label: string; detail: string; pose: MascotPose }> = {
+  idle: { label: "准备就绪", detail: "直接开口即可开始", pose: "wave" },
+  thinking: { label: "正在思考", detail: "根据有效内容组织追问", pose: "think" },
+  speaking: { label: "正在提问", detail: "麦克风持续开启，随时可以插话", pose: "speak" },
+  listening: { label: "正在倾听", detail: "实时识别并校正中文表达", pose: "listen" },
+  scoring: { label: "完成复盘", detail: "正在生成证据与改进建议", pose: "happy" },
 };
-
-type Pose = {
-  headTilt: number;
-  headTurn: number;
-  headNod: number;
-  leftArm: number;
-  rightArm: number;
-  rightArmPitch: number;
-};
-
-function capsule(
-  radius: number,
-  length: number,
-  material: THREE.Material,
-  rotationZ = 0,
-) {
-  const mesh = new THREE.Mesh(new THREE.CapsuleGeometry(radius, length, 8, 18), material);
-  mesh.rotation.z = rotationZ;
-  mesh.castShadow = true;
-  return mesh;
-}
-
-function buildLiuliTeacher(scene: THREE.Scene): Rig {
-  const root = new THREE.Group();
-  root.position.y = -0.18;
-  scene.add(root);
-
-  const skin = new THREE.MeshStandardMaterial({ color: 0xf6c9a6, roughness: 0.78 });
-  const skinSoft = new THREE.MeshStandardMaterial({ color: 0xf2b998, roughness: 0.8 });
-  const hair = new THREE.MeshStandardMaterial({ color: 0x292331, roughness: 0.68 });
-  const jacket = new THREE.MeshStandardMaterial({ color: 0x5b63d8, roughness: 0.58 });
-  const shirt = new THREE.MeshStandardMaterial({ color: 0xf7f8ff, roughness: 0.86 });
-  const ink = new THREE.MeshStandardMaterial({ color: 0x262134, roughness: 0.5 });
-  const blush = new THREE.MeshStandardMaterial({ color: 0xf497a8, transparent: true, opacity: 0.6 });
-
-  const torso = capsule(0.53, 0.72, jacket);
-  torso.scale.set(1.08, 1, 0.72);
-  torso.position.y = -0.72;
-  root.add(torso);
-
-  const shirtFront = new THREE.Mesh(new THREE.SphereGeometry(0.31, 24, 16), shirt);
-  shirtFront.scale.set(1, 1.08, 0.3);
-  shirtFront.position.set(0, -0.51, 0.49);
-  root.add(shirtFront);
-
-  const neck = capsule(0.15, 0.18, skin);
-  neck.position.y = -0.03;
-  root.add(neck);
-
-  const head = new THREE.Group();
-  head.position.y = 0.52;
-  root.add(head);
-
-  const hairBack = new THREE.Mesh(new THREE.SphereGeometry(0.67, 32, 24), hair);
-  hairBack.scale.set(0.98, 1.13, 0.86);
-  hairBack.position.set(0, 0.02, -0.08);
-  hairBack.castShadow = true;
-  head.add(hairBack);
-
-  const face = new THREE.Mesh(new THREE.SphereGeometry(0.55, 32, 24), skin);
-  face.scale.set(0.92, 1.04, 0.82);
-  face.position.z = 0.16;
-  face.castShadow = true;
-  head.add(face);
-
-  const fringePieces = [
-    [-0.31, 0.42, 0.38, -0.28],
-    [-0.08, 0.49, 0.43, -0.1],
-    [0.18, 0.46, 0.39, 0.18],
-  ] as const;
-  fringePieces.forEach(([x, y, scale, tilt]) => {
-    const piece = new THREE.Mesh(new THREE.SphereGeometry(0.36, 20, 14), hair);
-    piece.scale.set(scale, 0.62, 0.52);
-    piece.position.set(x, y, 0.47);
-    piece.rotation.z = tilt;
-    head.add(piece);
-  });
-
-  const eyes: THREE.Mesh[] = [];
-  [-0.2, 0.2].forEach(x => {
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.052, 16, 12), ink);
-    eye.scale.set(0.72, 1, 0.55);
-    eye.position.set(x, 0.12, 0.63);
-    head.add(eye);
-    eyes.push(eye);
-
-    const cheek = new THREE.Mesh(new THREE.SphereGeometry(0.09, 16, 10), blush);
-    cheek.scale.set(1.35, 0.45, 0.35);
-    cheek.position.set(x * 1.46, -0.08, 0.61);
-    head.add(cheek);
-  });
-
-  const nose = new THREE.Mesh(new THREE.SphereGeometry(0.035, 12, 8), skinSoft);
-  nose.position.set(0, 0.01, 0.69);
-  head.add(nose);
-
-  const smile = new THREE.Mesh(
-    new THREE.TorusGeometry(0.095, 0.012, 8, 24, Math.PI),
-    new THREE.MeshStandardMaterial({ color: 0x9a4f61, roughness: 0.6 }),
-  );
-  smile.rotation.z = Math.PI;
-  smile.position.set(0, -0.17, 0.675);
-  head.add(smile);
-
-  const makeArm = (side: -1 | 1) => {
-    const pivot = new THREE.Group();
-    pivot.position.set(side * 0.55, -0.42, 0.05);
-    const sleeve = capsule(0.14, 0.52, jacket, side * -0.08);
-    sleeve.position.y = -0.28;
-    pivot.add(sleeve);
-    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.14, 18, 12), skin);
-    hand.position.set(side * 0.05, -0.64, 0.02);
-    hand.castShadow = true;
-    pivot.add(hand);
-    root.add(pivot);
-    return pivot;
-  };
-
-  const leftArm = makeArm(-1);
-  const rightArm = makeArm(1);
-
-  return { root, head, leftArm, rightArm, eyes };
-}
 
 export default function VirtualInterviewer({
   state,
   audioLevel = 0,
   ttsSource = "none",
 }: VirtualInterviewerProps) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const previousStateRef = useRef<InterviewerState | null>(null);
+  const [pose, setPose] = useState<MascotPose>(stateCopy[state].pose);
   const { reducedMotion } = useMotionPreference();
-  const mountRef = useRef<HTMLDivElement>(null);
-  const stateRef = useRef(state);
-  const audioLevelRef = useRef(audioLevel);
-  const rigRef = useRef<Rig | null>(null);
-  const reducedMotionRef = useRef(reducedMotion);
-  const requestRenderRef = useRef<(() => void) | null>(null);
-  const poseRef = useRef<Pose>({
-    headTilt: 0,
-    headTurn: 0,
-    headNod: 0,
-    leftArm: 0.08,
-    rightArm: -0.08,
-    rightArmPitch: 0,
-  });
 
-  useEffect(() => { stateRef.current = state; }, [state]);
-  useEffect(() => { audioLevelRef.current = audioLevel; }, [audioLevel]);
-  useEffect(() => {
-    reducedMotionRef.current = reducedMotion;
-    requestRenderRef.current?.();
-  }, [reducedMotion]);
+  useGSAP(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    const mascot = root.querySelector<HTMLElement>("[data-mentor-mascot]");
+    const halo = root.querySelector<HTMLElement>("[data-mentor-halo]");
+    const signals = root.querySelectorAll<HTMLElement>("[data-mentor-signal]");
+    const thoughtDots = root.querySelectorAll<HTMLElement>("[data-thought-dot]");
+    const sparkles = root.querySelectorAll<HTMLElement>("[data-mentor-sparkle]");
+    const targetPose = stateCopy[state].pose;
+    gsap.killTweensOf([mascot, halo, signals, thoughtDots, sparkles]);
 
-  useEffect(() => {
-    const mount = mountRef.current;
-    if (!mount) return;
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(28, 1, 0.1, 100);
-    camera.position.set(0, 0.25, 5.5);
-
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFShadowMap;
-    renderer.domElement.setAttribute("aria-hidden", "true");
-    mount.appendChild(renderer.domElement);
-
-    scene.add(new THREE.HemisphereLight(0xf5f6ff, 0x35304c, 2.4));
-    const keyLight = new THREE.DirectionalLight(0xffffff, 3.1);
-    keyLight.position.set(2.8, 4.2, 4.5);
-    keyLight.castShadow = true;
-    scene.add(keyLight);
-    const rimLight = new THREE.DirectionalLight(0x8fa4ff, 1.8);
-    rimLight.position.set(-3.5, 1.4, -2);
-    scene.add(rimLight);
-
-    const floor = new THREE.Mesh(
-      new THREE.CircleGeometry(1.35, 48),
-      new THREE.MeshStandardMaterial({ color: 0xcdd3f8, transparent: true, opacity: 0.34, roughness: 1 }),
-    );
-    floor.rotation.x = -Math.PI / 2;
-    floor.position.y = -1.48;
-    floor.receiveShadow = true;
-    scene.add(floor);
-
-    const rig = buildLiuliTeacher(scene);
-    rigRef.current = rig;
-    const poseState = poseRef.current;
-    let frame = 0;
-    let disposed = false;
-    let inViewport = true;
-    let pageVisible = document.visibilityState === "visible";
-    const startedAt = Date.now();
-
-    const resize = () => {
-      const width = Math.max(1, mount.clientWidth);
-      const height = Math.max(1, mount.clientHeight);
-      renderer.setSize(width, height, false);
-      camera.aspect = width / height;
-      camera.updateProjectionMatrix();
-      renderer.render(scene, camera);
-    };
-    const observer = new ResizeObserver(resize);
-    observer.observe(mount);
-    resize();
-
-    const render = () => {
-      frame = 0;
-      if (disposed || !inViewport || !pageVisible) return;
-      const t = (Date.now() - startedAt) / 1000;
-      const current = stateRef.current;
-      const isReducedMotion = reducedMotionRef.current;
-      const motion = isReducedMotion ? 0 : 1;
-      const pose = poseState;
-      rig.root.position.y = -0.18 + Math.sin(t * 1.8) * 0.018 * motion;
-      rig.root.rotation.y = Math.sin(t * 0.48) * 0.035 * motion;
-      rig.head.rotation.set(
-        pose.headNod + (current === "speaking" ? Math.sin(t * 3.4) * 0.018 * motion : 0),
-        pose.headTurn,
-        pose.headTilt + (current === "listening" ? Math.sin(t * 1.4) * 0.018 * motion : 0),
-      );
-      rig.leftArm.rotation.set(0, 0, pose.leftArm);
-      rig.rightArm.rotation.set(
-        pose.rightArmPitch,
-        0,
-        pose.rightArm + (current === "speaking" ? Math.sin(t * 4.4) * 0.12 * motion : current === "scoring" ? Math.sin(t * 5) * 0.03 * motion : 0),
-      );
-
-      const blink = !isReducedMotion && Math.sin(t * 0.82) > 0.992;
-      rig.eyes.forEach(eye => { eye.scale.y = blink ? 0.08 : 1; });
-      const voiceBounce = current === "speaking" ? Math.min(0.04, audioLevelRef.current * 0.04) : 0;
-      rig.head.position.y = voiceBounce;
-
-      renderer.render(scene, camera);
-      if (!isReducedMotion) frame = requestAnimationFrame(render);
-    };
-    const requestRender = () => {
-      if (disposed || frame || !inViewport || !pageVisible) return;
-      if (reducedMotionRef.current) render();
-      else frame = requestAnimationFrame(render);
-    };
-    requestRenderRef.current = requestRender;
-
-    const intersectionObserver = new IntersectionObserver(entries => {
-      inViewport = entries[0]?.isIntersecting ?? true;
-      if (!inViewport && frame) {
-        cancelAnimationFrame(frame);
-        frame = 0;
-      } else requestRender();
-    }, { rootMargin: "80px" });
-    intersectionObserver.observe(mount);
-    const onVisibilityChange = () => {
-      pageVisible = document.visibilityState === "visible";
-      if (!pageVisible && frame) {
-        cancelAnimationFrame(frame);
-        frame = 0;
-      } else requestRender();
-    };
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    render();
-
-    return () => {
-      disposed = true;
-      cancelAnimationFrame(frame);
-      observer.disconnect();
-      intersectionObserver.disconnect();
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-      gsap.killTweensOf(poseState);
-      rigRef.current = null;
-      requestRenderRef.current = null;
-      renderer.dispose();
-      renderer.domElement.remove();
-      scene.traverse(object => {
-        if (!(object instanceof THREE.Mesh)) return;
-        object.geometry.dispose();
-        const materials = Array.isArray(object.material) ? object.material : [object.material];
-        materials.forEach(material => material.dispose());
-      });
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!rigRef.current) return;
-    const target: Pose = state === "listening"
-      ? { headTilt: -0.048, headTurn: 0, headNod: 0, leftArm: 0.08, rightArm: -0.23, rightArmPitch: 0 }
-      : state === "thinking"
-        ? { headTilt: 0.08, headTurn: -0.12, headNod: 0.02, leftArm: 0.08, rightArm: -1.18, rightArmPitch: -0.22 }
-        : state === "speaking"
-          ? { headTilt: 0, headTurn: 0, headNod: 0, leftArm: 0.08, rightArm: -0.68, rightArmPitch: -0.16 }
-          : state === "scoring"
-            ? { headTilt: 0, headTurn: 0, headNod: 0.1, leftArm: 0.5, rightArm: -0.5, rightArmPitch: 0 }
-            : { headTilt: 0, headTurn: 0, headNod: 0, leftArm: 0.08, rightArm: -0.08, rightArmPitch: 0 };
-
-    if (reducedMotionRef.current) {
-      gsap.killTweensOf(poseRef.current);
-      Object.assign(poseRef.current, target);
-      requestRenderRef.current?.();
+    if (reducedMotion) {
+      setPose(targetPose);
+      gsap.set([mascot, halo, signals, thoughtDots, sparkles], { clearProps: "all" });
+      previousStateRef.current = state;
       return;
     }
 
-    gsap.to(poseRef.current, {
-      ...target,
-      duration: 0.28,
-      ease: "power3.out",
-      overwrite: "auto",
-    });
-  }, [reducedMotion, state]);
+    const changed = previousStateRef.current !== null && previousStateRef.current !== state;
+    const timeline = gsap.timeline({ defaults: { ease: "power2.out" } });
+    timeline.addLabel("enter", 0);
+    if (changed) {
+      setPose("walk");
+      timeline
+        .fromTo(mascot, { x: -9, y: 2, rotation: -1.5 }, { x: 8, y: -2, rotation: 1.2, duration: 0.2 }, "enter")
+        .to(mascot, { x: 0, y: 0, rotation: 0, duration: 0.2 })
+        .call(() => setPose(targetPose));
+    } else {
+      setPose(targetPose);
+      timeline.fromTo(mascot, { y: 5, scale: 0.985 }, { y: 0, scale: 1, duration: 0.34 }, "enter");
+    }
 
-  const expression = state === "listening"
-    ? "专注倾听"
-    : state === "thinking"
-      ? "整理思路"
-      : state === "speaking"
-        ? "温和提问"
-        : state === "scoring"
-          ? "记录反馈"
-          : "准备就绪";
+    timeline.fromTo(halo, { scale: 0.9, autoAlpha: 0.3 }, {
+      scale: state === "scoring" ? 1.12 : 1,
+      autoAlpha: state === "idle" ? 0.4 : 0.8,
+      duration: 0.42,
+    }, "enter");
+    timeline.fromTo(signals, { scaleY: 0.2, autoAlpha: 0.3 }, {
+      scaleY: state === "listening" || state === "speaking" ? 1 : 0.45,
+      autoAlpha: state === "listening" || state === "speaking" ? 1 : 0.45,
+      duration: 0.24,
+      stagger: 0.025,
+    }, "enter+=0.08");
+
+    if (state === "thinking") {
+      timeline
+        .fromTo(thoughtDots, { autoAlpha: 0, scale: 0.3, y: 8 }, {
+          autoAlpha: 1,
+          scale: 1,
+          y: 0,
+          duration: 0.3,
+          stagger: 0.12,
+          ease: "back.out(1.7)",
+        }, ">-0.08")
+        .to(mascot, { rotation: -1.5, duration: 0.7, repeat: -1, yoyo: true, ease: "sine.inOut" }, ">-0.1");
+    }
+    if (state === "listening") {
+      timeline.to(mascot, { scale: 1.018, duration: 0.62, repeat: -1, yoyo: true, ease: "sine.inOut" }, ">-0.1");
+    }
+    if (state === "speaking") {
+      timeline.to(mascot, { x: 3, rotation: 0.7, duration: 0.48, repeat: -1, yoyo: true, ease: "sine.inOut" }, ">-0.12");
+    }
+    if (state === "scoring") {
+      timeline
+        .fromTo(mascot, { y: 5, scale: 0.96 }, { y: -5, scale: 1.035, duration: 0.36, ease: "back.out(1.8)" }, ">-0.05")
+        .to(mascot, { y: 0, scale: 1, duration: 0.28 })
+        .fromTo(sparkles, { autoAlpha: 0, scale: 0, y: 8 }, {
+          autoAlpha: 1,
+          scale: 1,
+          y: 0,
+          duration: 0.36,
+          stagger: 0.08,
+          ease: "back.out(2)",
+        }, "<");
+    }
+    previousStateRef.current = state;
+  }, { scope: rootRef, dependencies: [state, reducedMotion], revertOnUpdate: true });
+
+  const status = stateCopy[state];
+  const liveSignal = state === "listening" ? Math.max(0.22, Math.min(1, audioLevel)) : state === "speaking" ? 0.72 : 0.26;
 
   return (
-    <div className={`virtual-interviewer mentor-state-${state}`} aria-label={`虚拟面试官liuli老师，${expression}`}>
-      <div className="mentor-3d-stage" ref={mountRef} />
-      <div className="mentor-identity">
-        <strong>liuli老师</strong>
-        <span>青年职业导师 · 3D 实时形象</span>
+    <div ref={rootRef} className={`virtual-interviewer mentor-state-${state}`} aria-label={`虚拟面试官 liuli 老师，${status.label}`}>
+      <div className="mentor-portrait-stage">
+        <span className="mentor-portrait-halo" data-mentor-halo aria-hidden="true" />
+        <div className="mentor-portrait-copy">
+          <span>LIULI · AI CAREER MENTOR</span>
+          <b>{status.label}</b>
+          <small>{status.detail}</small>
+        </div>
+        <div className="mentor-mascot-wrap" aria-label={`可爱 AI 导师正在${status.label}`} role="img">
+          <div className={`mentor-mascot-sprite pose-${pose}`} data-mentor-mascot />
+          <div className="mentor-thought-dots" aria-hidden="true">
+            <i data-thought-dot /><i data-thought-dot /><i data-thought-dot />
+          </div>
+          <div className="mentor-sparkles" aria-hidden="true">
+            <i data-mentor-sparkle>✦</i><i data-mentor-sparkle>✦</i><i data-mentor-sparkle>✦</i>
+          </div>
+        </div>
+        <div className="mentor-signal" aria-hidden="true">
+          {Array.from({ length: 11 }).map((_, index) => (
+            <i
+              key={index}
+              data-mentor-signal
+              style={{
+                height: `${10 + Math.sin((index / 10) * Math.PI) * 16 * liveSignal}px`,
+                animationDelay: `${index * 45}ms`,
+              }}
+            />
+          ))}
+        </div>
+        <span className="mentor-virtual-badge">原创 AI 卡通形象 · 非真人</span>
       </div>
-      <div className="interviewer-label">
+      <div className="mentor-identity">
+        <strong>liuli 老师</strong>
+        <span>AI 面试导师 · 动作随对话进度变化</span>
+      </div>
+      <div className="interviewer-label" role="status" aria-live="polite">
         <span className={`indicator state-${state}`} />
-        <span>
-          {state === "idle" && "随时可以开始"}
-          {state === "thinking" && "正在整理下一步问题"}
-          {state === "speaking" && "正在和你交流"}
-          {state === "listening" && "正在认真倾听"}
-          {state === "scoring" && "正在整理面试反馈"}
-        </span>
+        <span>{status.label}</span>
         {ttsSource !== "none" && state === "speaking" && (
-          <small className="tts-source-badge">{ttsSource === "tencent" ? "云TTS" : "浏览器"}</small>
+          <small className="tts-source-badge">{ttsSource === "tencent" ? "云端语音" : "浏览器语音"}</small>
         )}
       </div>
     </div>

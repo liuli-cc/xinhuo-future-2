@@ -3,15 +3,20 @@
 import { apiFetch } from "@/modules/shared/api/bmob-api";
 
 import { useEffect, useMemo, useState } from "react";
-import PortalFrame from "@/modules/shared/components/PortalFrame";
+import Link from "next/link";
+import PortalFrame, { useStudentProfile } from "@/modules/shared/components/PortalFrame";
 import { AnimatedBarChart, AnimatedDonutChart, VizSkeleton } from "@/modules/shared/components/DataViz";
 import { loadCloudState, saveCloudState } from "@/modules/shared/state/cloud-state-client";
+import { currentSemesterForGrade, linkedGrowthTaskId } from "@/modules/shared/growth/semester";
+import imnuPublicIndex from "../../data/imnu-public-index.json";
 
 type Resource = { id: number; title: string; category: string; provider: string; level: string; duration: string; desc: string; tags: string[]; color: string };
 type Faculty = { id: string; name: string; title: string; position: string; mentorLevel: "博士研究生导师" | "硕士研究生导师" | "教师"; researchAreas: string[]; email: string; description: string; profileUrl: string; sourceUpdatedAt: string };
 type DirectoryStatus = "synced" | "no_public_directory" | "no_official_url" | "site_unavailable";
 type CollegeDirectory = { id: string; school: string; college: string; officialUrl: string; sourceUrl: string; mentorSourceUrl: string; sourceStatus: DirectoryStatus; sourceNote: string; updatedAt: string; total: number; doctoralCount: number; masterCount: number };
 type Directory = CollegeDirectory & { faculty: Faculty[] };
+type ImnuPublicItem = { id: string; title: string; section: string; publishedAt: string | null; summary: string; sourceUrl: string; sourceHost: string; syncedAt: string };
+type ImnuPublicIndex = { generatedAt: string; sections: string[]; source: { name: string; homeUrl: string; scope: string; copyrightNotice: string }; items: ImnuPublicItem[] };
 
 const resources: Resource[] = [
   { id: 1, title: "后端项目工程化实战", category: "课程", provider: "学堂在线", level: "进阶", duration: "12 课时", desc: "从接口设计、鉴权到部署，完成一个可演示的服务端项目。", tags: ["Node.js", "数据库"], color: "blue" },
@@ -31,10 +36,14 @@ const statusLabel: Record<DirectoryStatus, string> = {
   site_unavailable: "同步时官网暂时无法访问",
 };
 
+const imnuIndex = imnuPublicIndex as ImnuPublicIndex;
+
 export default function ResourcesClient() {
-  const [mode, setMode] = useState<"resources" | "mentors">("resources");
+  const profile = useStudentProfile();
+  const [mode, setMode] = useState<"resources" | "mentors" | "imnu">("resources");
   const [category, setCategory] = useState("全部");
   const [mentorLevel, setMentorLevel] = useState("全部师资");
+  const [imnuSection, setImnuSection] = useState("全部");
   const [query, setQuery] = useState("");
   const [saved, setSaved] = useState<number[]>([]);
   const [selectedResource, setSelectedResource] = useState<Resource | null>(null);
@@ -44,15 +53,19 @@ export default function ResourcesClient() {
   const [directory, setDirectory] = useState<Directory | null>(null);
   const [directoryError, setDirectoryError] = useState("");
   const [toast, setToast] = useState("");
+  const [joiningResource, setJoiningResource] = useState<number | null>(null);
+  const [joinedResource, setJoinedResource] = useState<number | null>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("section") === "mentors") setMode("mentors");
+    if (params.get("section") === "imnu") setMode("imnu");
     if (params.get("college")) setCollege(params.get("college")!);
     loadCloudState<number[]>("resource_saved", []).then(setSaved).catch(() => null);
   }, []);
 
   useEffect(() => {
+    if (mode !== "mentors") return;
     const controller = new AbortController();
     setDirectory(null); setDirectoryError(""); setSelectedFaculty(null);
     apiFetch(`/api/mentors?college=${encodeURIComponent(college)}`, { signal: controller.signal })
@@ -63,7 +76,7 @@ export default function ResourcesClient() {
       })
       .catch(error => { if (error.name !== "AbortError") setDirectoryError(error instanceof Error ? error.message : "导师目录读取失败"); });
     return () => controller.abort();
-  }, [college]);
+  }, [college, mode]);
 
   const filteredResources = useMemo(() => resources.filter(item =>
     (category === "全部" || item.category === category || category === "已收藏" && saved.includes(item.id)) &&
@@ -71,10 +84,13 @@ export default function ResourcesClient() {
   const filteredFaculty = useMemo(() => (directory?.faculty ?? []).filter(item =>
     (mentorLevel === "全部师资" || item.mentorLevel === mentorLevel) &&
     `${item.name}${item.title}${item.position}${item.mentorLevel}${item.researchAreas.join("")}${item.description}`.toLowerCase().includes(query.toLowerCase())), [directory, mentorLevel, query]);
+  const filteredImnuItems = useMemo(() => imnuIndex.items.filter(item =>
+    (imnuSection === "全部" || item.section === imnuSection) &&
+    `${item.title}${item.summary}${item.section}`.toLowerCase().includes(query.toLowerCase())), [imnuSection, query]);
 
-  const switchMode = (next: "resources" | "mentors") => {
+  const switchMode = (next: "resources" | "mentors" | "imnu") => {
     setMode(next); setQuery("");
-    const url = next === "mentors" ? `/resources?section=mentors&college=${encodeURIComponent(college)}` : "/resources";
+    const url = next === "mentors" ? `/resources?section=mentors&college=${encodeURIComponent(college)}` : next === "imnu" ? "/resources?section=imnu" : "/resources";
     window.history.replaceState({}, "", url);
   };
   const chooseCollege = (next: string) => {
@@ -85,10 +101,32 @@ export default function ResourcesClient() {
     const next = saved.includes(id) ? saved.filter(item => item !== id) : [...saved, id];
     setSaved(next); saveCloudState("resource_saved", next).catch(() => setToast("云端收藏保存失败，请稍后重试"));
   };
-  const join = (item: Resource) => {
-    setSelectedResource(null); setToast(`已加入“${item.title}”，可在收藏中查看`);
-    if (!saved.includes(item.id)) toggleSave(item.id);
-    setTimeout(() => setToast(""), 2400);
+  const join = async (item: Resource) => {
+    setJoiningResource(item.id);
+    const semesterIndex = currentSemesterForGrade(profile.grade);
+    try {
+      const response = await apiFetch("/api/growth-path", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          taskId: linkedGrowthTaskId("resource", String(item.id), semesterIndex),
+          semesterIndex,
+          title: `完成：${item.title}`,
+          note: `${item.provider} · ${item.level} · 完成后提交作品、证书或反馈作为佐证`,
+          type: item.category,
+          xp: item.level === "进阶" || item.level === "团队" ? 35 : 25,
+        }),
+      });
+      if (!response.ok) throw new Error("成长任务创建失败");
+      if (!saved.includes(item.id)) toggleSave(item.id);
+      setJoinedResource(item.id);
+      setToast(`“${item.title}”已加入成长地图`);
+      setTimeout(() => setToast(""), 2600);
+    } catch (reason) {
+      setToast(reason instanceof Error ? reason.message : "加入失败，请稍后重试");
+    } finally {
+      setJoiningResource(null);
+    }
   };
   const sourceLinks = directory ? [
     { href: directory.sourceUrl, label: "学院公开目录 ↗" },
@@ -98,14 +136,15 @@ export default function ResourcesClient() {
 
   return <PortalFrame
     active="resources"
-    eyebrow={mode === "mentors" ? "IMNU FACULTY DIRECTORY" : "RESOURCE HUB"}
-    title={mode === "mentors" ? "导师中心" : "成长资源"}
-    subtitle={mode === "mentors" ? "按内蒙古师范大学二级学院筛选公开师资信息；个人资料均可回到学院官网核验。" : "浏览课程、竞赛和实践机会；未形成真实画像前不显示虚构匹配度。"}
-    actions={<label className="resource-search">⌕<input value={query} onChange={event => setQuery(event.target.value)} placeholder={mode === "mentors" ? "搜索教师、研究方向或职称" : "搜索课程、竞赛或技能"} /></label>}
+    eyebrow={mode === "mentors" ? "IMNU FACULTY DIRECTORY" : mode === "imnu" ? "IMNU PUBLIC INDEX" : "RESOURCE HUB"}
+    title={mode === "mentors" ? "导师中心" : mode === "imnu" ? "内师公开信息" : "成长资源"}
+    subtitle={mode === "mentors" ? "按内蒙古师范大学二级学院筛选公开师资信息；个人资料均可回到学院官网核验。" : mode === "imnu" ? "索引内蒙古师范大学官网的公开信息并始终跳转原文；不复制正文、图片、附件或登录系统内容。" : "浏览课程、竞赛和实践机会；未形成真实画像前不显示虚构匹配度。"}
+    actions={<label className="resource-search">⌕<input value={query} onChange={event => setQuery(event.target.value)} placeholder={mode === "mentors" ? "搜索教师、研究方向或职称" : mode === "imnu" ? "搜索官网标题、栏目或摘要" : "搜索课程、竞赛或技能"} /></label>}
   >
     <nav className="resource-switch" aria-label="资源中心栏目">
       <button className={mode === "resources" ? "active" : ""} onClick={() => switchMode("resources")}><span>成长机会</span><small>课程 · 竞赛 · 项目</small></button>
       <button className={mode === "mentors" ? "active" : ""} onClick={() => switchMode("mentors")}><span>导师中心</span><small>二级学院 · 公开目录</small></button>
+      <button className={mode === "imnu" ? "active" : ""} onClick={() => switchMode("imnu")}><span>内师公开信息</span><small>官网索引 · 原文核验</small></button>
     </nav>
 
     {mode === "resources" ? <>
@@ -120,7 +159,7 @@ export default function ResourcesClient() {
       <div className="filter-tabs">{["全部", "课程", "竞赛", "项目", "活动", "服务", "已收藏"].map(item => <button className={category === item ? "active" : ""} onClick={() => setCategory(item)} key={item}>{item}{item === "已收藏" && saved.length > 0 ? ` ${saved.length}` : ""}</button>)}</div>
       <section className="resource-grid">{filteredResources.map(item => <article className="resource-card portal-card" key={item.id}><div className={`resource-cover ${item.color}`}><span>{item.category}</span><b>{item.title.slice(0, 2)}</b><em>公开资源</em></div><div className="resource-body"><div><span>{item.provider}</span><button aria-label={saved.includes(item.id) ? "取消收藏" : "收藏"} className={saved.includes(item.id) ? "saved" : ""} onClick={() => toggleSave(item.id)}>♡</button></div><h2>{item.title}</h2><p>{item.desc}</p><div className="resource-tags">{item.tags.map(tag => <span key={tag}>{tag}</span>)}</div><footer><span>{item.level} · {item.duration}</span><button onClick={() => setSelectedResource(item)}>查看详情 →</button></footer></div></article>)}</section>
       {filteredResources.length === 0 && <div className="empty-state"><span>⌕</span><h2>没有找到匹配资源</h2><p>换一个关键词或分类试试。</p></div>}
-    </> : <>
+    </> : mode === "mentors" ? <>
       <section className="mentor-hero">
         <div><span>INNER MONGOLIA NORMAL UNIVERSITY</span><h2>{directory?.college ?? "学院师资目录"}</h2><p>{directory?.sourceNote ?? "正在连接学院官网公开目录…"}</p></div>
         <div className="mentor-stats"><div><strong>{directory?.total ?? "-"}</strong><small>公开条目</small></div><div><strong>{directory?.doctoralCount ?? "-"}</strong><small>博士生导师</small></div><div><strong>{directory?.masterCount ?? "-"}</strong><small>硕士生导师</small></div></div>
@@ -149,9 +188,18 @@ export default function ResourcesClient() {
       {directory && directory.total === 0 && <div className="empty-state"><span>◎</span><h2>该学院暂未提供可稳定识别的公开师资目录</h2><p>{directory.sourceNote}</p></div>}
       {directory && directory.total > 0 && filteredFaculty.length === 0 && <div className="empty-state"><span>⌕</span><h2>没有找到匹配教师</h2><p>可更换关键词，或直接前往学院官网核验。</p></div>}
       {directory && <aside className="mentor-source"><div><b>数据来源</b><span>更新于 {directory.updatedAt} · {statusLabel[directory.sourceStatus]} · 仅使用学院官网公开信息</span></div><div>{sourceLinks.map(item => <a key={item.href} href={item.href} target="_blank" rel="noreferrer">{item.label}</a>)}</div></aside>}
+    </> : <>
+      <section className="resource-banner imnu-index-banner"><div><span>✦ INNER MONGOLIA NORMAL UNIVERSITY</span><h2>官网公开信息，一处查找、回到原文核验</h2><p>{imnuIndex.source.scope}</p></div><div><strong>{filteredImnuItems.length}</strong><small>当前显示条目</small></div></section>
+      <section className="resource-viz-grid single">
+        <AnimatedBarChart title="官网公开栏目分布" description="展示已同步的公开页面索引；打开条目后将跳转至内蒙古师范大学官网原文。" data={imnuIndex.sections.map(section => ({ label: section, value: imnuIndex.items.filter(item => item.section === section).length, detail: `${section}公开条目` }))} />
+      </section>
+      <div className="filter-tabs">{["全部", ...imnuIndex.sections].map(item => <button className={imnuSection === item ? "active" : ""} onClick={() => setImnuSection(item)} key={item}>{item}</button>)}</div>
+      <section className="resource-grid">{filteredImnuItems.map(item => <article className="resource-card portal-card" key={item.id}><div className="resource-cover blue"><span>{item.section}</span><b>内师</b><em>官方原文</em></div><div className="resource-body"><div><span>内蒙古师范大学官网</span></div><h2>{item.title}</h2><p>{item.summary || "该条目仅保留公开标题和官方来源链接；完整内容以官网原文为准。"}</p><div className="resource-tags"><span>{item.sourceHost}</span><span>公开索引</span></div><footer><span>{item.publishedAt ?? `同步于 ${item.syncedAt.slice(0, 10)}`}</span><a href={item.sourceUrl} target="_blank" rel="noreferrer">查看官网原文 ↗</a></footer></div></article>)}</section>
+      {filteredImnuItems.length === 0 && <div className="empty-state"><span>⌕</span><h2>没有找到匹配的官网公开信息</h2><p>可更换关键词或栏目；完整信息请在学校官网查看。</p></div>}
+      <aside className="mentor-source"><div><b>同步边界</b><span>生成于 {imnuIndex.generatedAt.slice(0, 10)} · {imnuIndex.source.copyrightNotice}</span></div><div><a href={imnuIndex.source.homeUrl} target="_blank" rel="noreferrer">访问内蒙古师范大学官网 ↗</a></div></aside>
     </>}
 
-    {selectedResource && <div className="modal-backdrop" onMouseDown={() => setSelectedResource(null)}><section className="portal-modal resource-modal" onMouseDown={event => event.stopPropagation()}><button className="modal-close" onClick={() => setSelectedResource(null)}>×</button><span className="modal-kicker">{selectedResource.category} · 公开成长资源</span><h2>{selectedResource.title}</h2><p>{selectedResource.desc}</p><div className="resource-detail"><div><span>提供方</span><b>{selectedResource.provider}</b></div><div><span>难度</span><b>{selectedResource.level}</b></div><div><span>时间</span><b>{selectedResource.duration}</b></div></div><h3>使用建议</h3><p>先确认它与你的真实目标和时间安排相符；完成后提交可核验成果，审核通过才会进入成长进度。</p><button className="modal-submit" onClick={() => join(selectedResource)}>加入我的收藏</button></section></div>}
+      {selectedResource && <div className="modal-backdrop" onMouseDown={() => !joiningResource && setSelectedResource(null)}><section className="portal-modal resource-modal" onMouseDown={event => event.stopPropagation()}><button className="modal-close" onClick={() => setSelectedResource(null)} disabled={Boolean(joiningResource)}>×</button><span className="modal-kicker">{selectedResource.category} · 公开成长资源</span><h2>{selectedResource.title}</h2><p>{selectedResource.desc}</p><div className="resource-detail"><div><span>提供方</span><b>{selectedResource.provider}</b></div><div><span>难度</span><b>{selectedResource.level}</b></div><div><span>时间</span><b>{selectedResource.duration}</b></div></div><h3>使用建议</h3><p>加入后会同时收藏并创建成长任务；完成后提交可核验成果，审核通过才会进入成长进度。</p>{joinedResource === selectedResource.id ? <Link className="modal-submit" href={`/growth-map?from=resources&target=${encodeURIComponent(selectedResource.title)}`}>已加入，前往成长地图 →</Link> : <button className="modal-submit" disabled={joiningResource === selectedResource.id} onClick={() => void join(selectedResource)}>{joiningResource === selectedResource.id ? "正在加入…" : "加入成长地图"}</button>}</section></div>}
     {selectedFaculty && <div className="modal-backdrop" onMouseDown={() => setSelectedFaculty(null)}><section className="portal-modal mentor-modal" onMouseDown={event => event.stopPropagation()}><button className="modal-close" onClick={() => setSelectedFaculty(null)}>×</button><div className="mentor-modal-profile"><span className="mentor-avatar large">{selectedFaculty.name.slice(0, 1)}</span><div><span className="modal-kicker">{selectedFaculty.mentorLevel}</span><h2>{selectedFaculty.name}</h2><p>{[selectedFaculty.title, selectedFaculty.position].filter(Boolean).join(" · ") || "学院官网公开师资条目"}</p></div></div>{selectedFaculty.researchAreas.length > 0 && <div className="mentor-modal-section"><h3>研究方向</h3><div className="mentor-tags">{selectedFaculty.researchAreas.map(area => <span key={area}>{area}</span>)}</div></div>}<div className="mentor-modal-section"><h3>公开资料说明</h3><p>{selectedFaculty.description}</p></div>{selectedFaculty.email && <div className="mentor-contact"><span>公开邮箱</span><a href={`mailto:${selectedFaculty.email}`}>{selectedFaculty.email}</a></div>}{selectedFaculty.profileUrl && <a className="modal-submit mentor-profile-link" href={selectedFaculty.profileUrl} target="_blank" rel="noreferrer">前往学院官网查看完整资料 ↗</a>}<small className="mentor-modal-note">资料来源：学院官网公开页面 · 更新于 {selectedFaculty.sourceUpdatedAt}</small></section></div>}
     {toast && <div className="portal-toast">✓ {toast}</div>}
   </PortalFrame>;

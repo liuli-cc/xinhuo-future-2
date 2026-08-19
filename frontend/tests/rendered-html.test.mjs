@@ -38,3 +38,9 @@ test("unresolved roles do not flash access-denied states", async () => {
   assert.doesNotMatch(adminHtml, /没有管理员权限/);
   assert.doesNotMatch(teacherHtml, /请前往管理中心/);
 });
+
+test("interview export contains the replacement mentor and transparent identity label", async () => {
+  const html = await readFile(`${projectRoot}/out/interview.html`, "utf8");
+  assert.match(html, /mentor-mascot-sprite pose-wave/);
+  assert.match(html, /原创 AI 卡通形象 · 非真人/);
+});

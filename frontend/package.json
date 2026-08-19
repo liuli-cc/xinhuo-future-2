@@ -1,12 +1,14 @@
 {
   "name": "xinhuo-student-growth-platform",
-  "version": "0.5.0",
+  "version": "0.7.0",
   "private": true,
   "engines": {
     "node": ">=22.13.0"
   },
   "scripts": {
     "postinstall": "node scripts/copy-ocr-assets.mjs",
+    "asr:setup": "node scripts/setup-sherpa-asr.mjs",
+    "asr:start": "node scripts/serve-sherpa-asr.mjs",
     "dev": "next dev",
     "build": "next build",
     "start": "node scripts/serve-static.mjs",
@@ -26,15 +28,15 @@
     "pdfjs-dist": "^6.2.108",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "sherpa-onnx-node": "^1.13.6",
     "tesseract.js": "^7.0.0",
-    "three": "^0.185.1"
+    "ws": "^8.21.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.2.1",
     "@types/node": "22.19.19",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
-    "@types/three": "^0.185.1",
     "eslint": "9.39.4",
     "eslint-config-next": "16.2.12",
     "react-server-dom-webpack": "19.2.8",

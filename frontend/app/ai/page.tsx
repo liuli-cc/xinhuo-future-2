@@ -3,8 +3,10 @@
 import { apiFetch } from "@/modules/shared/api/bmob-api";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import PortalFrame, { useStudentProfile } from "@/modules/shared/components/PortalFrame";
 import { AnimatedBarChart, AnimatedDonutChart, VizSkeleton } from "@/modules/shared/components/DataViz";
+import { currentSemesterForGrade, linkedGrowthTaskId } from "@/modules/shared/growth/semester";
 
 type ProfileOption = { id: string; label: string; description: string };
 type Gap = { dimension: string; score: number; threshold: number; gap: number; weightedGap: number };
@@ -39,6 +41,8 @@ export default function DecisionPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
+  const [savingRecommendation, setSavingRecommendation] = useState("");
+  const [handoffRecommendation, setHandoffRecommendation] = useState("");
 
   useEffect(() => {
     if (profile.targetRole && profile.targetRole !== "探索方向") setTarget(profile.targetRole);
@@ -64,14 +68,41 @@ export default function DecisionPage() {
   }, [target]);
 
   const feedback = async (item: Recommendation, value: "accepted" | "completed" | "dismissed") => {
-    const response = await apiFetch("/api/decision", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ targetRole: plan?.target.id, recommendationId: item.id, feedback: value }),
-    });
-    if (!response.ok) return setError("行动反馈保存失败");
-    setToast(value === "completed" ? "已记录完成意向；正式进度仍需提交佐证并通过审核" : value === "accepted" ? "已加入你的行动反馈" : "已降低同类建议优先级");
-    window.setTimeout(() => setToast(""), 2600);
+    setSavingRecommendation(item.id);
+    setError("");
+    try {
+      const response = await apiFetch("/api/decision", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetRole: plan?.target.id, recommendationId: item.id, feedback: value }),
+      });
+      if (!response.ok) throw new Error("行动反馈保存失败");
+      if (value === "accepted") {
+        const semesterIndex = currentSemesterForGrade(profile.grade);
+        const taskResponse = await apiFetch("/api/growth-path", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            taskId: linkedGrowthTaskId("decision", item.id, semesterIndex),
+            semesterIndex,
+            title: item.title,
+            note: `来自${plan?.target.label ?? "成长决策"} · 验收物：${item.deliverable}`,
+            type: item.dimension,
+            xp: Math.max(20, Math.min(60, item.priority * 10)),
+          }),
+        });
+        if (!taskResponse.ok) throw new Error("反馈已保存，但成长任务创建失败，请稍后重试");
+        setHandoffRecommendation(item.id);
+        setToast("已加入成长地图，可继续提交佐证");
+      } else {
+        setToast(value === "completed" ? "已记录完成意向；正式进度仍需提交佐证并通过审核" : "已降低同类建议优先级");
+      }
+      window.setTimeout(() => setToast(""), 2600);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "行动保存失败");
+    } finally {
+      setSavingRecommendation("");
+    }
   };
 
   return <PortalFrame
@@ -147,7 +178,7 @@ export default function DecisionPage() {
           <div><small>{item.dimension} · 预计 {item.estimatedWeeks} 周</small><h3>{item.title}</h3><p>{item.rationale}</p><em>验收物：{item.deliverable}</em>
             <details><summary>查看优先级因素</summary><div className="decision-factors">{Object.entries(item.factors).map(([key, value]) => <span key={key}>{key} <b>{value}</b></span>)}</div></details>
           </div>
-          <aside><strong>{item.priority}</strong><small>优先级</small><button onClick={() => feedback(item, "accepted")}>加入计划</button><button onClick={() => feedback(item, "dismissed")}>暂不考虑</button></aside>
+          <aside><strong>{item.priority}</strong><small>优先级</small>{handoffRecommendation === item.id ? <Link className="handoff-ready" href={`/growth-map?from=decision&target=${encodeURIComponent(item.title)}`}>已加入，前往成长地图 →</Link> : <button className="decision-add-action" disabled={savingRecommendation === item.id} onClick={() => feedback(item, "accepted")}>{savingRecommendation === item.id ? "正在加入…" : "加入成长地图"}</button>}<button disabled={savingRecommendation === item.id} onClick={() => feedback(item, "dismissed")}>暂不考虑</button></aside>
         </article>)}</div> : <div className="admin-review-empty"><span>✓</span><div><b>当前没有新的高优先级行动</b><p>继续提交真实佐证，系统会重新计算。</p></div></div>}
       </section>
     </>}

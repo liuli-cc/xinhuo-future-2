@@ -74,6 +74,7 @@ export default function CareerWorkbench() {
   const [statusDrafts, setStatusDrafts] = useState<Record<string, ApplicationStatus>>({});
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
+  const [handoffTask, setHandoffTask] = useState("");
 
   const load = useCallback(async () => {
     const [jobsResponse, applicationsResponse] = await Promise.all([apiFetch("/api/career/jobs"), apiFetch("/api/career/applications")]);
@@ -154,6 +155,7 @@ export default function CareerWorkbench() {
       const response = await apiFetch(`/api/career/jobs/${job.id}/gap-tasks`, { method: "POST" });
       const body = await response.json() as { tasks?: unknown[]; error?: string };
       if (!response.ok) throw new Error(body.error || "补强任务创建失败");
+      setHandoffTask(job.id);
       notify(`已把 ${body.tasks?.length ?? 0} 项岗位缺口加入成长地图，仍需提交佐证并审核`);
     } catch (reason) { setError(reason instanceof Error ? reason.message : "补强任务创建失败"); }
     finally { setBusyId(null); }
@@ -243,7 +245,7 @@ export default function CareerWorkbench() {
               <div className="career-score-grid">{detail.dimensions.map(item => <article key={item.name}><div><b>{item.name}</b><strong>{item.score}</strong></div><i><em style={{ width: `${item.score}%` }} /></i><p>{item.weight}% 权重 · {item.evidenceBasis}</p></article>)}</div>
               <div className="career-match-notes"><section><h4>已有优势</h4>{detail.strengths.map(item => <p key={item}>✓ {item}</p>)}</section><section><h4>待补强缺口</h4>{detail.gaps.length ? detail.gaps.map(item => <p key={item.id}><b>{item.label}</b>：{item.recommendation}</p>) : <p>当前未识别到主要岗位缺口，仍请核对企业官方资格要求。</p>}</section></div>
               <div className="career-manual-checks"><span>投递前仍需人工确认</span>{detail.manualChecks.map(item => <p key={item}>• {item}</p>)}</div>
-              <footer><button className="ghost-action" disabled={busyId === `gap-${job.id}`} onClick={() => addGapTasks(job)}>{busyId === `gap-${job.id}` ? "正在加入…" : "将缺口加入成长地图"}</button>{job.application ? <button className="primary-action" onClick={() => setTab("applications")}>查看投递进度</button> : <button className="primary-action" disabled={busyId === `apply-${job.id}`} onClick={() => createApplication(job)}>{busyId === `apply-${job.id}` ? "正在加入…" : "加入投递工作台"}</button>}</footer>
+              <footer>{handoffTask === job.id ? <Link className="ghost-action handoff-ready" href={`/growth-map?from=career&target=${encodeURIComponent(job.title)}`}>已加入，前往成长地图 →</Link> : <button className="ghost-action" disabled={busyId === `gap-${job.id}`} onClick={() => addGapTasks(job)}>{busyId === `gap-${job.id}` ? "正在加入…" : "将缺口加入成长地图"}</button>}{job.application ? <button className="primary-action" onClick={() => setTab("applications")}>查看投递进度</button> : <button className="primary-action" disabled={busyId === `apply-${job.id}`} onClick={() => createApplication(job)}>{busyId === `apply-${job.id}` ? "正在加入…" : "加入投递工作台"}</button>}</footer>
             </div> : <div className="career-match-empty"><b>尚未计算匹配</b><p>点击“开始匹配”后，系统将从已审核的成长佐证中读取依据；没有证据时会明确显示低可信度，而不是生成默认高分。</p></div>}
           </div>}
         </article>;

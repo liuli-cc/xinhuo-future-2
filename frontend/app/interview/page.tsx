@@ -5,7 +5,7 @@ import PortalFrame from "@/modules/shared/components/PortalFrame";
 import { AnimatedBarChart, AnimatedLineChart } from "@/modules/shared/components/DataViz";
 import VirtualInterviewer, { type InterviewerState } from "@/modules/group-1-interview/components/VirtualInterviewer";
 import ContinuousSpeechRecognition, {
-  supportsBrowserSpeechRecognition,
+  supportsRealtimeSpeechRecognition,
   type LiveSpeechStatus,
 } from "@/modules/group-1-interview/components/ContinuousSpeechRecognition";
 import ResumeUploader from "@/modules/group-1-interview/components/ResumeUploader";
@@ -17,7 +17,7 @@ import {
 import type { ResumeStructured } from "@/modules/group-1-interview/client/resume-parser";
 import type { JobStructured } from "@/modules/group-3-career/client/job-parser";
 import { defaultInterviewPlan, type InterviewPlan } from "@/modules/group-1-interview/client/interview-plan";
-import type { SpeechMetrics } from "@/modules/group-1-interview/client/speech-analysis";
+import { analyzeSpeechMetrics, type SpeechMetrics } from "@/modules/group-1-interview/client/speech-analysis";
 import { generateReportV2, type ScoredAnswer, type InterviewReportV2 } from "@/modules/group-1-interview/client/scoring-v2";
 import { buildInterviewReportMarkdown, interviewReportFileName } from "@/modules/group-1-interview/client/interview-report-export";
 import {
@@ -25,6 +25,8 @@ import {
   downloadInterviewReportWord,
 } from "@/modules/group-1-interview/client/interview-report-download";
 import type { VoiceCaptureStats } from "@/modules/group-1-interview/client/wav-audio";
+import { cleanInterviewTranscript, type TranscriptCleanup } from "@/modules/group-1-interview/client/transcript-cleaner";
+import type { RealtimeAsrProvider } from "@/modules/group-1-interview/client/streaming-speech";
 import { createResumeUploadId, splitResumeBase64 } from "@/modules/group-1-interview/client/resume-upload";
 import { useMotionPreference } from "@/modules/shared/motion/motion-preference";
 import {
@@ -34,7 +36,7 @@ import {
 } from "@/modules/group-1-interview/client/client-resume-ocr";
 import { gsap } from "gsap";
 import { useGSAP } from "@gsap/react";
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 
 gsap.registerPlugin(useGSAP);
 
@@ -112,10 +114,12 @@ export default function InterviewPage() {
   const [liveTurnKey, setLiveTurnKey] = useState(0);
   const [liveTranscript, setLiveTranscript] = useState("");
   const [liveSpeechStatus, setLiveSpeechStatus] = useState<LiveSpeechStatus>("idle");
+  const [asrProvider, setAsrProvider] = useState<RealtimeAsrProvider>("unavailable");
   const [callPaused, setCallPaused] = useState(false);
   const [browserSpeechReady, setBrowserSpeechReady] = useState<boolean | null>(null);
-  const [conversationLog, setConversationLog] = useState<Array<{ speaker: "interviewer" | "candidate"; text: string }>>([]);
+  const [conversationLog, setConversationLog] = useState<Array<{ speaker: "interviewer" | "candidate"; text: string; rawText?: string; cleanupCount?: number }>>([]);
   const callPausedRef = useRef(false);
+  const ttsRunRef = useRef(0);
 
   /* ── 实时语音识别 ── */
   const [transcribedText, setTranscribedText] = useState("");
@@ -237,8 +241,9 @@ export default function InterviewPage() {
   }, [callPaused]);
 
   useEffect(() => {
-    setBrowserSpeechReady(supportsBrowserSpeechRecognition());
+    setBrowserSpeechReady(supportsRealtimeSpeechRecognition());
     return () => {
+      ttsRunRef.current += 1;
       if ("speechSynthesis" in window) window.speechSynthesis.cancel();
     };
   }, []);
@@ -247,11 +252,34 @@ export default function InterviewPage() {
   useEffect(() => {
     apiFetch("/api/interview").then(r => r.json()).then(b => setHistory(b.sessions ?? [])).catch(() => {});
     apiFetch("/api/career/applications").then(r => r.ok ? r.json() : null)
-      .then(b => { if (b?.applications) setCareerApplications(b.applications); }).catch(() => {});
+      .then(b => {
+        if (!b?.applications) return;
+        const applications = b.applications as CareerApplication[];
+        setCareerApplications(applications);
+        const requestedApplication = new URLSearchParams(window.location.search).get("applicationId");
+        const matched = applications.find(item => item.id === requestedApplication);
+        if (!matched) return;
+        setApplicationId(matched.id);
+        setManualJobTitle(matched.title);
+        setManualJobCompany(matched.company);
+        setJobSource("saved");
+        setSetupStep("job");
+        showToast(`已带入“${matched.title}”，确认后即可生成专项面试`);
+      }).catch(() => {});
   }, []);
 
   const format = (v: number) => `${String(Math.floor(v / 60)).padStart(2, "0")}:${String(v % 60).padStart(2, "0")}`;
   const providerInfo = INTERVIEW_MODEL_PROVIDERS[provider];
+  const asrContextualKeywords = useMemo(() => Array.from(new Set([
+    jobParsed?.title ?? "",
+    ...(jobParsed?.skills ?? []),
+    ...(jobParsed?.coreCompetencies ?? []),
+    ...(resumeParsed?.skills ?? []),
+    ...currentQuestion.split(/[，。！？、；：,.!?\s]+/).filter(item => item.length >= 2),
+    "薪火未来",
+    "内蒙古师范大学",
+    "STAR",
+  ].map(item => item.trim()).filter(item => item.length >= 2))).slice(0, 40), [currentQuestion, jobParsed, resumeParsed]);
 
   /* ── 模型连接测试 ── */
   const testConnection = async () => {
@@ -437,11 +465,11 @@ export default function InterviewPage() {
 
   const beginListeningTurn = () => {
     if (callPausedRef.current) return;
-    if (!supportsBrowserSpeechRecognition()) {
+    if (!supportsRealtimeSpeechRecognition()) {
       setBrowserSpeechReady(false);
       setLiveListening(false);
       setUseTextFallback(true);
-      setAsrError("当前浏览器不支持免费实时识别，请使用桌面版 Chrome，或改用文字回答。");
+      setAsrError("当前环境未配置开源流式识别，浏览器也不支持中文实时识别。请使用桌面版 Chrome，或改用文字回答。");
       setInterviewerState("idle");
       return;
     }
@@ -456,20 +484,21 @@ export default function InterviewPage() {
     setInterviewerState("listening");
   };
 
-  /* ── 免费浏览器语音合成；朗读结束后自动进入倾听 ── */
+  /* ── 全双工语音：提问期间麦克风持续监听，候选人可直接插话 ── */
   const speakQuestion = (text: string, addToLog = true) => {
     if (!text) return;
-    setLiveListening(false);
+    beginListeningTurn();
     if ("speechSynthesis" in window) window.speechSynthesis.cancel();
     setInterviewerState("speaking");
     setTtsSource("browser");
     if (addToLog) setConversationLog(log => [...log, { speaker: "interviewer", text }]);
-    fallbackTTS(text, beginListeningTurn);
+    fallbackTTS(text);
   };
 
   const fallbackTTS = (text: string, onDone?: () => void) => {
+    const runId = ++ttsRunRef.current;
     if (!("speechSynthesis" in window)) {
-      setInterviewerState("idle");
+      setInterviewerState("listening");
       onDone?.();
       return;
     }
@@ -483,11 +512,15 @@ export default function InterviewPage() {
       ?? voices.find(voice => /^zh(-|_)/i.test(voice.lang));
     if (preferred) u.voice = preferred;
     u.onend = () => {
-      setInterviewerState("idle");
+      if (ttsRunRef.current !== runId) return;
+      setTtsSource("none");
+      setInterviewerState("listening");
       onDone?.();
     };
     u.onerror = () => {
-      setInterviewerState("idle");
+      if (ttsRunRef.current !== runId) return;
+      setTtsSource("none");
+      setInterviewerState("listening");
       onDone?.();
     };
     window.speechSynthesis.speak(u);
@@ -504,6 +537,7 @@ export default function InterviewPage() {
     callPausedRef.current = true;
     setSaving(true);
     setInterviewerState("scoring");
+    ttsRunRef.current += 1;
     if ("speechSynthesis" in window) window.speechSynthesis.cancel();
     if (announce) {
       fallbackTTS("好的，谢谢你的回答。今天的交流就到这里，我正在为你整理一份具体的面试反馈。");
@@ -525,6 +559,8 @@ export default function InterviewPage() {
           answers: finalAnswers.map(answer => ({
             question: answer.question,
             answer: answer.answer,
+            rawTranscript: answer.rawTranscript,
+            transcriptCleanup: answer.transcriptCleanup,
             seconds: answer.seconds,
             speechMetrics: answer.speechMetrics,
           })),
@@ -616,14 +652,22 @@ export default function InterviewPage() {
     answerOverride?: string,
     durationOverrideMs?: number,
     captureStatsOverride?: VoiceCaptureStats,
+    cleanupOverride?: TranscriptCleanup,
   ) => {
-    const finalAnswer = answerOverride?.trim() || (useTextFallback ? textAnswer.trim() : transcribedText.trim());
+    const sourceAnswer = answerOverride?.trim() || (useTextFallback ? textAnswer.trim() : transcribedText.trim());
+    const transcriptCleanup = cleanupOverride ?? cleanInterviewTranscript(sourceAnswer);
+    const finalAnswer = transcriptCleanup.cleaned;
     if (finalAnswer.length < 8) return showToast("请先输入至少 8 个字的回答");
 
     setLiveListening(false);
     setSaving(true);
     setInterviewerState("thinking");
-    setConversationLog(log => [...log, { speaker: "candidate", text: finalAnswer }]);
+    setConversationLog(log => [...log, {
+      speaker: "candidate",
+      text: finalAnswer,
+      rawText: transcriptCleanup.changed ? transcriptCleanup.raw : undefined,
+      cleanupCount: transcriptCleanup.removedFillers.length,
+    }]);
     const answerDurationMs = durationOverrideMs
       ?? Math.max(1, seconds * 1000);
     const captureStats = captureStatsOverride ?? null;
@@ -632,20 +676,14 @@ export default function InterviewPage() {
     // 计算语音指标
     let speechMetrics: SpeechMetrics | null = null;
     if (captureStats) {
-      try {
-        const r = await apiFetch("/api/interview/speech-metrics", {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            transcript: finalAnswer,
-            totalDurationMs: answerDurationMs,
-            captureStats,
-          }),
-        });
-        if (r.ok) {
-          const b = await r.json();
-          speechMetrics = b.metrics;
-        }
-      } catch {}
+      speechMetrics = analyzeSpeechMetrics(
+        transcriptCleanup.raw,
+        answerDurationMs,
+        captureStats.activeSpeechMs,
+        captureStats.pauseDurationsMs,
+        captureStats.thinkingBeforeAnswerMs,
+        captureStats.volumeSamples,
+      );
     }
 
     // 调用模型分析
@@ -677,6 +715,11 @@ export default function InterviewPage() {
     const { scoreAnswerV2 } = await import("@/modules/group-1-interview/client/scoring-v2");
     const jobSkills = jobParsed?.skills ?? [];
     const scored = scoreAnswerV2(currentQuestion, finalAnswer, answerSeconds, jobSkills, speechMetrics);
+    scored.rawTranscript = transcriptCleanup.raw;
+    scored.transcriptCleanup = {
+      changed: transcriptCleanup.changed,
+      removedFillers: transcriptCleanup.removedFillers,
+    };
     if (modelInsight) {
       // 把模型分析附加到评分上
       scored.evidence = {
@@ -717,17 +760,27 @@ export default function InterviewPage() {
   };
 
   const handleLiveTurnComplete = (text: string, durationMs: number, stats: VoiceCaptureStats) => {
+    const cleanup = cleanInterviewTranscript(text);
     setLiveListening(false);
-    setLiveTranscript(text);
-    setTranscribedText(text);
+    setLiveTranscript(cleanup.cleaned);
+    setTranscribedText(cleanup.cleaned);
     setAsrError("");
     setUseTextFallback(false);
-    if (text.trim().length < 8) {
+    if (cleanup.cleaned.length < 8) {
       showToast("这段回答有些短，请再补充一点具体信息");
       setTimeout(() => beginListeningTurn(), 500);
       return;
     }
-    void submitAnswer(text, durationMs, stats);
+    if (cleanup.changed) showToast(`已自动清理 ${cleanup.removedFillers.length} 处口头语或重复表达`, 2600);
+    void submitAnswer(cleanup.cleaned, durationMs, stats, cleanup);
+  };
+
+  const handleBargeIn = () => {
+    if (interviewerState !== "speaking") return;
+    ttsRunRef.current += 1;
+    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+    setTtsSource("none");
+    setInterviewerState("listening");
   };
 
   const handleLiveSpeechError = (message: string) => {
@@ -750,6 +803,7 @@ export default function InterviewPage() {
     callPausedRef.current = true;
     setCallPaused(true);
     setLiveListening(false);
+    ttsRunRef.current += 1;
     if ("speechSynthesis" in window) window.speechSynthesis.cancel();
     setInterviewerState("idle");
   };
@@ -765,7 +819,14 @@ export default function InterviewPage() {
         body: JSON.stringify({
           targetRole: jobParsed?.title ?? "通用能力",
           difficulty: jobParsed?.difficulty === "advanced" ? "进阶" : jobParsed?.difficulty === "entry" ? "入门" : "标准",
-          answers: pendingReport.map(a => ({ question: a.question, answer: a.answer, seconds: a.seconds, speechMetrics: a.speechMetrics })),
+          answers: pendingReport.map(a => ({
+            question: a.question,
+            answer: a.answer,
+            rawTranscript: a.rawTranscript,
+            transcriptCleanup: a.transcriptCleanup,
+            seconds: a.seconds,
+            speechMetrics: a.speechMetrics,
+          })),
           modelProvider: provider, modelName, reportV2: rpt,
         }),
       });
@@ -791,6 +852,7 @@ export default function InterviewPage() {
 
   /* ── 重置 ── */
   const resetAll = () => {
+    ttsRunRef.current += 1;
     if ("speechSynthesis" in window) window.speechSynthesis.cancel();
     setPageMode("setup");
     setSetupStep("resume");
@@ -823,7 +885,7 @@ export default function InterviewPage() {
   if (pageMode === "setup") {
     return (
       <div ref={studioRef} className="interview-studio-root interview-studio-root--setup">
-      <PortalFrame active="interview" eyebrow="INTERVIEW STUDIO" title="和 liuli 老师，完成一场真实的模拟面试" subtitle="多格式简历识别 · 连续语音追问 · 约 15 分钟 · 结构化复盘">
+      <PortalFrame active="interview" eyebrow="INTERVIEW STUDIO" title="和 liuli 老师，完成一场真实的模拟面试" subtitle="多格式简历识别 · 岗位上下文自动衔接 · 约 15 分钟 · 结构化复盘">
         <div className="voice-interview-setup interview-v3">
           {/* 左侧：进度步骤 */}
           <aside className="setup-steps-panel">
@@ -841,7 +903,7 @@ export default function InterviewPage() {
             </div>
             <div className={`step-item ${setupStep === "ready" ? "active" : ""}`}>
               <span className="step-num">4</span>
-              <div><b>开始实时通话</b><small>liuli老师自然追问，Chrome 自动转写回答</small></div>
+              <div><b>开始实时通话</b><small>liuli 老师自然追问，开源流式识别优先</small></div>
             </div>
           </aside>
 
@@ -892,6 +954,7 @@ export default function InterviewPage() {
 
                 {jobSource === "saved" && careerApplications.length > 0 && (
                   <div className="saved-jobs-list">
+                    {applicationId && <div className="linked-context-note"><b>已从实习就业带入岗位</b><span>确认后，本次提问与报告会关联到该投递记录。</span></div>}
                     {careerApplications.map(app => (
                       <button key={app.id} className={applicationId === app.id ? "active" : ""} onClick={() => selectCareerJob(app.id)}>
                         <b>{app.title}</b><span>{app.company}</span>
@@ -949,7 +1012,7 @@ export default function InterviewPage() {
                 {/* 模型连接 */}
                 {planMode === "local" ? (
                   <div className="no-job-note" style={{ marginBottom: 16 }}>
-                    <p>不需要安装软件、不需要 API Key。系统会根据简历和岗位生成连贯提纲，使用 Chrome 免费语音识别与浏览器朗读；回答文字和评分仍可正常保存。</p>
+                    <p>不需要 API Key。系统会根据简历和岗位生成连贯提纲，优先连接已配置的开源中文流式识别，未配置时回退 Chrome；回答文字和评分仍可正常保存。</p>
                   </div>
                 ) : <div className="model-connect-panel">
                   <div className="model-provider-tabs">
@@ -1030,7 +1093,7 @@ export default function InterviewPage() {
           </section>
 
           {/* 虚拟面试官预览 */}
-          <aside className="setup-interviewer-preview">
+          <aside className="setup-interviewer-preview" aria-label="liuli 老师虚拟形象预览">
             <VirtualInterviewer state={interviewerState} />
           </aside>
         </div>
@@ -1076,8 +1139,8 @@ export default function InterviewPage() {
     return (
       <div ref={studioRef} className="interview-studio-root interview-studio-root--active" data-navigation-guard="面试正在进行，离开会结束当前语音与作答状态。确认离开吗？">
       <PortalFrame active="interview" eyebrow={`${jobParsed?.title ?? "通用能力"} INTERVIEW`}
-        title="与liuli老师的实时模拟面试"
-        subtitle="约 15 分钟连续对话 · Chrome 免费实时识别 · 原始录音不保存"
+        title="与 liuli 老师的实时模拟面试"
+        subtitle="约 15 分钟全双工连续对话 · 无需按键、随时插话 · 原始录音不保存"
         actions={(
           <div className="live-call-header-actions">
             <button className="ghost-action" onClick={toggleCallPause}>{callPaused ? "继续通话" : "暂停"}</button>
@@ -1117,7 +1180,15 @@ export default function InterviewPage() {
               </div>
               <div className="live-signal-summary">
                 <span className={browserSpeechReady ? "ready" : "warning"}>
-                  <i />{browserSpeechReady ? "Chrome 实时识别" : "等待语音能力"}
+                  <i />{browserSpeechReady
+                    ? asrProvider === "soulx-duplug"
+                      ? "SoulX 语义双工"
+                      : asrProvider === "funasr"
+                        ? "FunASR 中文流式"
+                        : asrProvider === "sherpa-onnx"
+                          ? "sherpa-onnx 本地中文"
+                          : "Chrome 实时识别"
+                    : "等待语音能力"}
                 </span>
                 <span className={modelAvailable ? "ready" : "warning"}>
                   <i />{modelAvailable ? "动态追问" : "内置流程"}
@@ -1135,7 +1206,15 @@ export default function InterviewPage() {
               {conversationLog.slice(-7).map((entry, logIndex) => (
                 <article className={`live-transcript-entry ${entry.speaker}`} data-live-entry key={`${entry.speaker}-${logIndex}-${entry.text.slice(0, 12)}`}>
                   <span>{entry.speaker === "interviewer" ? "liuli老师" : "我"}</span>
-                  <p>{entry.text}</p>
+                  <div>
+                    <p>{entry.text}</p>
+                    {entry.rawText && (
+                      <details className="transcript-audit">
+                        <summary>查看原始转写 · 已清理 {entry.cleanupCount ?? 0} 处口头语</summary>
+                        <p>{entry.rawText}</p>
+                      </details>
+                    )}
+                  </div>
                 </article>
               ))}
               {liveListening && liveTranscript && (
@@ -1156,12 +1235,20 @@ export default function InterviewPage() {
               <ContinuousSpeechRecognition
                 active={liveListening && !callPaused && !useTextFallback}
                 turnKey={liveTurnKey}
-                disabled={saving || interviewerState === "speaking"}
+                disabled={saving}
+                assistantSpeaking={interviewerState === "speaking"}
+                assistantTranscript={currentQuestion}
+                contextualKeywords={asrContextualKeywords}
                 maxDurationMs={90_000}
-                silenceMs={5_000}
+                silenceMs={2_400}
                 onInterimChange={setLiveTranscript}
                 onAudioLevel={setAudioLevel}
                 onStatusChange={setLiveSpeechStatus}
+                onProviderChange={next => {
+                  setAsrProvider(next);
+                  setBrowserSpeechReady(next !== "unavailable");
+                }}
+                onBargeIn={handleBargeIn}
                 onComplete={handleLiveTurnComplete}
                 onError={handleLiveSpeechError}
               />
@@ -1217,8 +1304,8 @@ export default function InterviewPage() {
               )}
 
               <div className="live-console-footnote">
-                <span>{liveSpeechStatus === "hearing" ? "正在接收你的回答" : "连续静默约 5 秒才会提交，也可点击“我说完了”"}</span>
-                <span>建议佩戴耳机，降低扬声器回声</span>
+                <span>{liveSpeechStatus === "hearing" ? "正在接收并实时校正你的回答" : "无需按键；语义完整或自然停顿后自动继续"}</span>
+                <span>可直接打断面试官；佩戴耳机时双工效果更稳定</span>
               </div>
             </div>
           </section>
@@ -1355,6 +1442,10 @@ export default function InterviewPage() {
             <ol>
               {(report.actionPlan ?? []).map((item, itemIndex) => <li key={itemIndex}>{item}</li>)}
             </ol>
+            <div className="report-next-actions">
+              <a className="primary-action" href={`/growth-map?from=interview&target=${encodeURIComponent(jobParsed?.title ?? "通用能力")}`}>把改进项带回成长地图</a>
+              <a className="ghost-action" href="/portrait">查看能力画像如何变化</a>
+            </div>
           </section>
 
           {/* 逐题回顾 */}
