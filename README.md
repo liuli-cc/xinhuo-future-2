@@ -63,6 +63,8 @@ npm test
 ## 文档
 
 - [最新使用手册](docs/USAGE.md)
+- [测试账号说明](docs/TEST-ACCOUNTS.md)
+- [招聘数据导入教程](docs/IMPORT-GUIDE.md)
 - [数据迁移手册](docs/DATA-MIGRATION-RUNBOOK.md)
 - [备份与恢复](docs/BACKUP-RESTORE.md)
 - [运营与告警](docs/OPERATIONS-RUNBOOK.md)
