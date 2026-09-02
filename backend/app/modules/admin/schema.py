@@ -14,7 +14,7 @@ class EvidenceReviewInput(BaseModel):
 
 class AccountActionInput(BaseModel):
     targetId: int
-    action: str = Field(..., pattern=r"^(approve|reject|suspend|activate|placement)$")
+    action: str = Field(..., pattern=r"^(approve|reject|suspend|activate|placement|grant_employment|revoke_employment)$")
     note: str = Field(default="", max_length=300)
     college: str | None = Field(default=None, max_length=80)
     major: str | None = Field(default=None, max_length=80)

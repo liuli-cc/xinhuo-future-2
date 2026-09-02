@@ -152,7 +152,7 @@ async def cancel_deletion(current_user: CurrentUser, db: AsyncSession = Depends(
 async def export_account_data(current_user: CurrentUser, db: AsyncSession = Depends(get_db)):
     user_id = current_user["id"]
     evidence = list((await db.execute(select(Evidence).where(Evidence.user_id == user_id))).scalars())
-    jobs = list((await db.execute(select(CareerJob).where(CareerJob.user_id == user_id))).scalars())
+    jobs = list((await db.execute(select(CareerJob).where(CareerJob.created_by == user_id))).scalars())
     applications = list((await db.execute(select(CareerApplication).where(CareerApplication.user_id == user_id))).scalars())
     interviews = list((await db.execute(select(InterviewSession).where(InterviewSession.user_id == user_id))).scalars())
     content = {

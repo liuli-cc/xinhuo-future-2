@@ -54,6 +54,18 @@ def can_manage_system(user: dict | Any) -> bool:
     return role in SYSTEM_ROLES
 
 
+def can_manage_employment(user: dict | Any) -> bool:
+    """Check if user can import/govern jobs and announcements (就业管理授权).
+
+    Admin roles always can; teachers need the explicit employment_admin flag
+    granted by an admin in account management.
+    """
+    role = _get_role(user)
+    if role in SYSTEM_ROLES:
+        return True
+    return bool(user.get("employment_admin"))
+
+
 def can_access_target(
     actor: dict | Any,
     target: dict | Any,

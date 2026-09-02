@@ -100,6 +100,13 @@ async def update_managed_account(payload: AccountActionInput, current_user: Curr
             raise ValidationError("院系、专业/岗位和班级不能为空")
         updates = {"college": payload.college, "major": payload.major, "class_name": payload.className, "grade": payload.grade or ""}
         action = "account.placement_updated"
+    elif payload.action in ("grant_employment", "revoke_employment"):
+        if not can_manage_accounts(current_user):
+            raise ForbiddenError("只有管理员可以授予或收回就业管理授权")
+        if target["role"] == "student":
+            raise ValidationError("就业管理授权只能授予教师/管理岗账号")
+        updates = {"employment_admin": payload.action == "grant_employment"}
+        action = f"account.{payload.action}"
     else:
         if current_user["role"] in ("teacher", "counselor") and target["role"] != "student":
             raise ForbiddenError("教师只能审核本班学生账号")
@@ -286,8 +293,8 @@ async def complete_deletion(payload: DeletionCompleteInput, current_user: Curren
     await db.execute(update(EvidenceReview).where(EvidenceReview.reviewer_id == payload.userId).values(reviewer_id=None))
     await db.execute(update(EmploymentReview).where(EmploymentReview.reviewer_id == payload.userId).values(reviewer_id=None))
     await db.execute(update(CandidatePush).where(CandidatePush.pushed_by == payload.userId, CandidatePush.user_id != payload.userId).values(pushed_by=None))
-    await db.execute(update(CandidatePush).where(CandidatePush.career_job_id.in_(select(CareerJob.id).where(CareerJob.user_id == payload.userId))).values(career_job_id=None))
-    await db.execute(update(GeneratedResume).where(GeneratedResume.career_job_id.in_(select(CareerJob.id).where(CareerJob.user_id == payload.userId)), GeneratedResume.user_id != payload.userId).values(career_job_id=None))
+    await db.execute(update(CandidatePush).where(CandidatePush.career_job_id.in_(select(CareerJob.id).where(CareerJob.created_by == payload.userId))).values(career_job_id=None))
+    await db.execute(update(GeneratedResume).where(GeneratedResume.career_job_id.in_(select(CareerJob.id).where(CareerJob.created_by == payload.userId)), GeneratedResume.user_id != payload.userId).values(career_job_id=None))
     await db.execute(update(RecoveryRequest).where(RecoveryRequest.completed_by == payload.userId, RecoveryRequest.user_id != payload.userId).values(completed_by=None))
     await db.execute(update(DataImportBatch).where(DataImportBatch.imported_by == payload.userId).values(imported_by=None))
     await db.execute(update(AuditLog).where(AuditLog.actor_user_id == payload.userId).values(actor_user_id=None))
@@ -303,7 +310,7 @@ async def complete_deletion(payload: DeletionCompleteInput, current_user: Curren
     await db.execute(delete(CandidatePush).where(CandidatePush.user_id == payload.userId))
     await db.execute(delete(StudentDataAuthorization).where(StudentDataAuthorization.user_id == payload.userId))
     await db.execute(delete(GeneratedResume).where(GeneratedResume.user_id == payload.userId))
-    await db.execute(delete(CareerJob).where(CareerJob.user_id == payload.userId))
+    await db.execute(delete(CareerJob).where(CareerJob.created_by == payload.userId))
     await db.execute(delete(EvidenceReview).where(EvidenceReview.evidence_id.in_(select(Evidence.id).where(Evidence.user_id == payload.userId))))
     await db.execute(delete(EvidenceFile).where(EvidenceFile.user_id == payload.userId))
     await db.execute(delete(Evidence).where(Evidence.user_id == payload.userId))
