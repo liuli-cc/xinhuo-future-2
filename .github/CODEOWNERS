@@ -1,0 +1,105 @@
+# 薪火未来 — Code Owners
+# 个人仓库不能使用不存在的组织团队；由仓库所有者负责主干评审。
+# 规则: 最后匹配优先。
+
+*                                    @liuli-cc
+
+# ═══════════════════════════════════════════════════════════
+# SHARED — 平台公共基础设施 (需至少一个其他组 Review)
+# ═══════════════════════════════════════════════════════════
+backend/app/core/                  @liuli-cc
+backend/app/db/                    @liuli-cc
+backend/app/main.py                @liuli-cc
+backend/alembic/                   @liuli-cc
+backend/docker-compose.yml         @liuli-cc
+backend/.env.example               @liuli-cc
+backend/scripts/                   @liuli-cc
+
+# Shared — Modules
+backend/app/modules/auth/          @liuli-cc
+backend/app/modules/users/         @liuli-cc
+backend/app/modules/reference/     @liuli-cc
+backend/app/modules/organization/  @liuli-cc
+backend/app/modules/admission/     @liuli-cc
+backend/app/modules/admin/         @liuli-cc
+backend/app/modules/files/         @liuli-cc
+backend/app/modules/imports/       @liuli-cc
+
+# Shared — Frontend
+frontend/app/page.tsx                       @liuli-cc
+frontend/app/account/                       @liuli-cc
+frontend/app/admin/                         @liuli-cc
+frontend/app/teacher/                       @liuli-cc
+frontend/app/resources/                     @liuli-cc
+frontend/app/layout.tsx                     @liuli-cc
+frontend/app/components/PortalFrame.tsx     @liuli-cc
+frontend/app/components/AccountManagementPanel.tsx @liuli-cc
+frontend/lib/auth.ts                        @liuli-cc
+frontend/lib/bmob-api.ts                    @liuli-cc
+
+# Shared — Docs & Config
+docs/                              @liuli-cc
+.github/                           @liuli-cc
+frontend/package.json                       @liuli-cc
+frontend/tsconfig.json                      @liuli-cc
+frontend/next.config.ts                     @liuli-cc
+
+# ═══════════════════════════════════════════════════════════
+# GROUP1 — AI简历 + AI模拟面试
+# ═══════════════════════════════════════════════════════════
+backend/app/modules/resume/        @liuli-cc
+backend/app/modules/interview/     @liuli-cc
+backend/app/integrations/llm/      @liuli-cc
+backend/app/integrations/asr/      @liuli-cc
+backend/app/integrations/tts/      @liuli-cc
+backend/app/integrations/ocr/      @liuli-cc
+
+# Group1 — Frontend
+frontend/app/interview/                     @liuli-cc
+frontend/app/components/VirtualInterviewer.tsx @liuli-cc
+frontend/app/components/ContinuousSpeechRecognition.tsx @liuli-cc
+frontend/app/components/ResumeUploader.tsx   @liuli-cc
+frontend/lib/interview-engine.ts            @liuli-cc
+frontend/lib/interview-model.ts             @liuli-cc
+frontend/lib/interview-plan.ts              @liuli-cc
+frontend/lib/interview-report-download.ts   @liuli-cc
+frontend/lib/interview-report-export.ts     @liuli-cc
+frontend/lib/scoring-v2.ts                  @liuli-cc
+frontend/lib/speech-analysis.ts             @liuli-cc
+frontend/lib/wav-audio.ts                   @liuli-cc
+frontend/lib/resume-parser.ts               @liuli-cc
+frontend/lib/resume-upload.ts               @liuli-cc
+frontend/lib/client-resume-ocr.ts           @liuli-cc
+
+# ═══════════════════════════════════════════════════════════
+# GROUP2 — 任务匹配 + 榜样激励
+# ═══════════════════════════════════════════════════════════
+backend/app/modules/evidence/      @liuli-cc
+backend/app/modules/growth/        @liuli-cc
+
+# Group2 — Frontend
+frontend/app/dashboard/                     @liuli-cc
+frontend/app/growth-map/                    @liuli-cc
+frontend/app/portrait/                      @liuli-cc
+frontend/app/ai/                            @liuli-cc
+frontend/lib/growth-engine.ts               @liuli-cc
+frontend/lib/decision-engine.ts             @liuli-cc
+
+# ═══════════════════════════════════════════════════════════
+# GROUP3 — 智能岗位匹配
+# ═══════════════════════════════════════════════════════════
+backend/app/modules/employment/    @liuli-cc
+backend/app/modules/career/        @liuli-cc
+
+# Group3 — Frontend
+frontend/app/career/                        @liuli-cc
+frontend/app/components/CareerWorkbench.tsx @liuli-cc
+frontend/app/components/CareerJobDiscovery.tsx @liuli-cc
+frontend/lib/career-engine.ts               @liuli-cc
+frontend/lib/job-parser.ts                  @liuli-cc
+frontend/lib/job-import-parser.ts           @liuli-cc
+
+# ═══════════════════════════════════════════════════════════
+# Legacy — 旧后端 (保持可运行，原则上不修改)
+# ═══════════════════════════════════════════════════════════
+functions/                         @liuli-cc

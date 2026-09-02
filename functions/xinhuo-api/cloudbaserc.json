@@ -1,0 +1,15 @@
+{
+  "version": "2.0",
+  "envId": "xinhuo-d8gxyksn2f7095c5a",
+  "functionRoot": ".",
+  "functions": [
+    {
+      "name": "xinhuo-api",
+      "runtime": "Nodejs20.19",
+      "handler": "index.main",
+      "timeout": 60,
+      "memorySize": 256,
+      "description": "薪火未来按需 HTTP 后端（文档数据库）"
+    }
+  ]
+}

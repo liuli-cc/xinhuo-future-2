@@ -1,0 +1,23 @@
+name: Bug report
+description: 报告可复现的平台问题
+title: "[Bug] "
+labels: [bug]
+body:
+  - type: textarea
+    id: scope
+    attributes: { label: 影响角色与页面, description: 学生、教师或管理员，以及具体页面 }
+    validations: { required: true }
+  - type: textarea
+    id: reproduce
+    attributes: { label: 复现步骤 }
+    validations: { required: true }
+  - type: textarea
+    id: expected
+    attributes: { label: 预期与实际结果 }
+    validations: { required: true }
+  - type: input
+    id: request
+    attributes: { label: X-Request-ID, description: 不要粘贴密码、令牌或模型密钥 }
+  - type: textarea
+    id: data
+    attributes: { label: 数据/权限影响, description: 是否涉及误授权、数据丢失或错误审核 }

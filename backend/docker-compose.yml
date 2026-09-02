@@ -1,0 +1,71 @@
+services:
+  # ── MySQL 8 ───────────────────────────────────────────────
+  mysql:
+    image: mysql:8.0
+    container_name: xinhuo-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root-dev-pwd
+      MYSQL_DATABASE: xinhuo
+      MYSQL_USER: xinhuo
+      MYSQL_PASSWORD: xinhuo-dev-pwd
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "xinhuo", "-pxinhuo-dev-pwd"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ── FastAPI Backend ──────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: xinhuo-backend
+    restart: unless-stopped
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: xinhuo
+      MYSQL_USER: xinhuo
+      MYSQL_PASSWORD: xinhuo-dev-pwd
+      WEB_ORIGIN: http://localhost:3000
+      LOG_FORMAT: console
+      DEBUG: "true"
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+      - local_file_storage:/app/storage
+    depends_on:
+      mysql:
+        condition: service_healthy
+    command: >
+      sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # ── Adminer (optional DB GUI) ────────────────────────────
+  adminer:
+    image: adminer:latest
+    container_name: xinhuo-adminer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    depends_on:
+      - mysql
+
+volumes:
+  mysql_data:
+  local_file_storage:
