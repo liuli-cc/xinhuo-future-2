@@ -118,6 +118,7 @@ class UserRepository:
             "account_reviewed_at": user.account_reviewed_at,
             "account_reviewed_by": user.account_reviewed_by,
             "force_password_change": user.force_password_change,
+            "employment_admin": bool(user.employment_admin),
             "password_hash": user.password_hash,
             "password_salt": user.password_salt,
             "failed_login_count": user.failed_login_count,

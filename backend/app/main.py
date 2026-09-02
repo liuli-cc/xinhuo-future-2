@@ -194,6 +194,8 @@ async def metrics(authorization: str | None = Header(default=None)):
 
 from .modules.admin.router import router as admin_router
 from .modules.auth.router import router as auth_router
+from .modules.career.admin_router import router as career_admin_router
+from .modules.career.announcements_router import router as career_announcements_router
 from .modules.career.router import router as career_router
 from .modules.files.router import router as files_router, upload_evidence_file
 from .modules.growth.router import router as growth_router
@@ -207,8 +209,8 @@ from .modules.users.router import router as users_router
 
 for module_router in (
     auth_router, users_router, account_router, reference_router, organization_router,
-    files_router, imports_router, growth_router, career_router, interview_router,
-    admin_router, platform_router,
+    files_router, imports_router, growth_router, career_router, career_announcements_router,
+    career_admin_router, interview_router, admin_router, platform_router,
 ):
     app.include_router(module_router, prefix="/api/v1")
 

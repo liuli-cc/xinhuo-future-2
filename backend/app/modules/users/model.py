@@ -51,6 +51,9 @@ class User(Base, SoftDeleteMixin):
     force_password_change: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default="0", comment="是否强制修改密码"
     )
+    employment_admin: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="0", comment="就业管理授权（可导入/治理岗位与公告）"
+    )
 
     # ── Credentials (never return in API) ───────────────────
     password_hash: Mapped[str] = mapped_column(String(200), nullable=False, comment="密码散列")
