@@ -9,7 +9,8 @@ type DirectionId = "postgraduate" | "civil-service" | "teaching" | "employment";
 type Metric = "专业学习" | "项目实践" | "创新探索" | "沟通协作" | "职业准备";
 type Assessment = Record<Metric, number>;
 type Task = { id: string; stage: string; title: string; detail: string; deliverable: string; metric: Metric; threshold: number; weeks: number; priority: "高" | "中" | "低" };
-type Resource = { id: string; type: "网课" | "竞赛"; title: string; provider: string; detail: string; fit: string; gpa: string; tags: string[] };
+type ResourceType = "网课" | "竞赛" | "实践" | "证书" | "导师" | "志愿";
+type Resource = { id: string; type: ResourceType; title: string; provider: string; detail: string; fit: string; gpa: string; tags: string[] };
 type RoleModel = { id: string; name: string; school: string; major: string; destination: string; similarity: number; achievements: string[]; turningPoint: string; turningPointDetail: string };
 
 const metrics: Metric[] = ["专业学习", "项目实践", "创新探索", "沟通协作", "职业准备"];
@@ -34,6 +35,10 @@ const directionData: Record<DirectionId, { title: string; eyebrow: string; tasks
       { id: "pg-r2", type: "网课", title: "科研入门：从文献阅读到复现实验", provider: "学堂在线", detail: "学习检索、阅读、实验记录与学术表达，产出复现报告。", fit: "创新探索低于 70 分时推荐", gpa: "建议绩点 ≥ 3.0", tags: ["科研", "论文", "实验"] },
       { id: "pg-r3", type: "竞赛", title: "全国大学生数学竞赛", provider: "中国数学会 · 校内选拔", detail: "适合作为数学基础的阶段性检验，关注校内报名与考试时间。", fit: "数学基础稳固后挑战", gpa: "通常无硬性绩点", tags: ["数学", "考试", "证书"] },
       { id: "pg-r4", type: "竞赛", title: "大学生创新创业训练计划", provider: "校团委 / 教务处", detail: "以科研或社会问题为主题，寻找导师并完成立项、中期和结题。", fit: "为复试准备真实科研经历", gpa: "部分学院要求绩点 ≥ 2.5", tags: ["科研", "导师", "项目"] },
+      { id: "pg-r5", type: "实践", title: "实验室科研助理实践", provider: "学院实验室 · 导师课题组", detail: "协助数据整理、实验复现和周会汇报，积累真实科研协作记录。", fit: "创新探索低于 70 分时优先", gpa: "建议绩点 ≥ 3.0", tags: ["实验室", "助研", "周会"] },
+      { id: "pg-r6", type: "证书", title: "英语四六级与学术英语训练", provider: "学校公共外语教学部", detail: "根据目标院校要求安排词汇、阅读和口语表达，保存成绩单与学习计划。", fit: "复试和申请材料的基础门槛", gpa: "部分院校要求四级 ≥ 425", tags: ["英语", "成绩单", "复试"] },
+      { id: "pg-r7", type: "导师", title: "研究方向说明会与导师见面会", provider: "研究生院 / 学院", detail: "了解实验室方向、培养方式和招生偏好，带着作品或问题进行有效沟通。", fit: "完成院校筛选后参加", gpa: "无绩点要求，以公告为准", tags: ["导师", "方向", "信息差"] },
+      { id: "pg-r8", type: "志愿", title: "科研科普志愿服务", provider: "校科协 / 科普基地", detail: "参与科普讲解或活动组织，把专业知识转化成可表达、可复盘的实践。", fit: "补充沟通协作和公共表达证据", gpa: "无绩点要求", tags: ["科普", "表达", "服务"] },
     ],
     roleModels: [
       { id: "pg-m1", name: "陈思远（示例）", school: "内蒙古师范大学 · 2021 届", major: "计算机科学与技术", destination: "清华大学计算机学院（示例）", similarity: 89, achievements: ["专业前 10%", "完成 2 项科研复现实验", "发表中文核心论文 1 篇"], turningPoint: "大二下第一次科研复现", turningPointDetail: "把课程作业升级为可复现的实验报告，找到导师后持续迭代，最终形成复试可讲述的研究主线。" },
@@ -53,6 +58,10 @@ const directionData: Record<DirectionId, { title: string; eyebrow: string; tasks
       { id: "gov-r2", type: "网课", title: "申论写作与政策阅读", provider: "学习强国 · 公共课", detail: "通过政策原文和范文拆解，训练概括、提出对策和公文写作。", fit: "沟通表达低于 70 分时优先", gpa: "无绩点要求", tags: ["申论", "政策", "写作"] },
       { id: "gov-r3", type: "竞赛", title: "大学生模拟政协提案大赛", provider: "校团委", detail: "围绕真实公共议题完成调研、提案和答辩，积累公共表达证据。", fit: "沟通协作和公共议题兴趣匹配", gpa: "通常无硬性绩点", tags: ["调研", "提案", "答辩"] },
       { id: "gov-r4", type: "竞赛", title: "大学生社会调查与分析大赛", provider: "中国商业统计学会", detail: "完成问卷设计、数据分析和调研报告，训练申论所需的事实与论证能力。", fit: "适合把专业学习转成公共问题分析", gpa: "部分赛道建议绩点 ≥ 2.5", tags: ["调查", "数据", "报告"] },
+      { id: "gov-r5", type: "实践", title: "基层社区调研实践", provider: "学院实践基地 / 社区", detail: "围绕公共服务问题完成访谈、观察和建议报告，形成真实社会治理案例。", fit: "申论和面试需要事实素材时优先", gpa: "通常无绩点要求", tags: ["基层", "调研", "治理"] },
+      { id: "gov-r6", type: "证书", title: "普通话水平测试", provider: "内蒙古自治区普通话培训测试中心", detail: "按报考岗位和地区要求准备测试，保留成绩单并核对公告中的资格条件。", fit: "部分岗位或教师方向的资格门槛", gpa: "无绩点要求，等级以公告为准", tags: ["普通话", "资格", "公告"] },
+      { id: "gov-r7", type: "导师", title: "公考政策解读与学长经验分享", provider: "就业指导中心", detail: "围绕选岗、备考节奏和面试流程提问，整理成自己的备考决策记录。", fit: "职业准备低于 65 分时推荐", gpa: "无绩点要求", tags: ["选岗", "经验", "政策"] },
+      { id: "gov-r8", type: "志愿", title: "大型赛事志愿服务", provider: "校团委 / 城市志愿服务中心", detail: "在真实公共场景中训练沟通、秩序协作和突发情况处理，留存服务证明。", fit: "补充面试中的真实案例", gpa: "无绩点要求", tags: ["志愿", "协作", "服务证明"] },
     ],
     roleModels: [
       { id: "gov-m1", name: "李婧（示例）", school: "内蒙古师范大学 · 2020 届", major: "行政管理", destination: "国家税务总局某市税务局（示例）", similarity: 86, achievements: ["国考行测 78 分", "省级社会调查大赛一等奖", "完成 40 篇申论复盘"], turningPoint: "大三暑期完成第一套真题复盘", turningPointDetail: "发现自己不是刷题量不够，而是时间分配不稳定，于是用模块正确率和耗时做周追踪，八周后稳定提升。" },
@@ -72,6 +81,10 @@ const directionData: Record<DirectionId, { title: string; eyebrow: string; tasks
       { id: "teach-r2", type: "网课", title: "微格教学与十分钟试讲", provider: "高校教师发展中心", detail: "从教学目标到板书设计逐项练习，适合录制后获得同伴反馈。", fit: "沟通协作低于 75 分时优先", gpa: "建议绩点 ≥ 2.5", tags: ["试讲", "板书", "表达"] },
       { id: "teach-r3", type: "竞赛", title: "师范生教学技能大赛", provider: "校教务处", detail: "通过说课、片段教学和答辩训练，把教案转化为可展示的教学成果。", fit: "适合建立试讲作品集", gpa: "部分学院要求绩点 ≥ 2.8", tags: ["教学", "说课", "答辩"] },
       { id: "teach-r4", type: "竞赛", title: "大学生志愿服务项目大赛", provider: "校团委", detail: "以支教或教育公益为主题，积累真实服务时长和项目组织经验。", fit: "项目实践低于 65 分时推荐", gpa: "通常无硬性绩点", tags: ["支教", "公益", "实践"] },
+      { id: "teach-r5", type: "实践", title: "教育见习与助教实践", provider: "学院实践基地", detail: "进入中小学或校内课堂观察、助教和批改作业，记录一次教学调整。", fit: "项目实践低于 65 分时优先", gpa: "建议绩点 ≥ 2.5", tags: ["见习", "助教", "课堂"] },
+      { id: "teach-r6", type: "证书", title: "教师资格证备考与普通话测试", provider: "国家中小学智慧教育平台", detail: "确认学段学科和普通话等级要求，按考试节点安排笔试、面试与认定。", fit: "考编前必须核对的资格链", gpa: "通常无绩点要求，以公告为准", tags: ["教资", "普通话", "认定"] },
+      { id: "teach-r7", type: "导师", title: "优秀教师课堂观摩", provider: "学院教师教育中心", detail: "带着观察表记录课堂目标、提问和评价方式，课后向指导教师请教。", fit: "完善教学设计与试讲方法", gpa: "无绩点要求", tags: ["观课", "指导", "课堂"] },
+      { id: "teach-r8", type: "志愿", title: "乡村支教与课后辅导", provider: "校青年志愿者协会", detail: "完成连续服务并记录学生反馈，形成一份可复盘的教学案例。", fit: "建立真实教育场景证据", gpa: "无绩点要求", tags: ["支教", "辅导", "反思"] },
     ],
     roleModels: [
       { id: "teach-m1", name: "王晨（示例）", school: "内蒙古师范大学 · 2021 届", major: "汉语言文学", destination: "呼和浩特市某中学（示例）", similarity: 91, achievements: ["教师资格证笔试面试一次通过", "校级教学技能大赛一等奖", "完成 80 小时支教实践"], turningPoint: "大二加入支教项目", turningPointDetail: "第一次面对真实学生后，发现备课不是堆知识点，而是设计学生能完成的活动，于是开始系统记录课堂反馈。" },
@@ -91,6 +104,10 @@ const directionData: Record<DirectionId, { title: string; eyebrow: string; tasks
       { id: "job-r2", type: "网课", title: "产品思维与用户研究", provider: "中国大学 MOOC", detail: "用访谈、竞品分析和原型验证训练产品岗位的完整工作流。", fit: "目标岗位包含产品 / 用户关键词时推荐", gpa: "无绩点要求", tags: ["产品", "用户", "原型"] },
       { id: "job-r3", type: "竞赛", title: "中国国际大学生创新大赛", provider: "校创新创业学院", detail: "把真实问题做成方案、原型和路演材料，形成跨角色协作证据。", fit: "项目实践和创新探索的综合练习", gpa: "以校内通知为准", tags: ["创新", "路演", "团队"] },
       { id: "job-r4", type: "竞赛", title: "全国大学生计算机设计大赛", provider: "校教务处", detail: "适合软件应用和信息可视化方向，用作品和答辩展示专业能力。", fit: "适合沉淀公开作品与答辩经验", gpa: "部分赛道建议绩点 ≥ 2.5", tags: ["作品", "软件", "答辩"] },
+      { id: "job-r5", type: "实践", title: "校园真实项目实践", provider: "创新实验室 / 校内部门", detail: "与真实需求方协作完成需求、交付和复盘，沉淀作品链接和用户反馈。", fit: "项目实践低于 75 分时优先", gpa: "通常无绩点要求", tags: ["项目", "需求", "交付"] },
+      { id: "job-r6", type: "证书", title: "计算机技术与软件专业技术资格", provider: "全国计算机技术与软件专业技术资格考试", detail: "根据目标岗位选择初级或中级科目，核对报名时间和考试大纲。", fit: "技术岗位需要结构化知识证明时推荐", gpa: "无绩点要求，以考试公告为准", tags: ["软考", "技术", "证书"] },
+      { id: "job-r7", type: "导师", title: "行业导师一对一作品评审", provider: "就业指导中心 / 校友会", detail: "带着简历、作品和岗位 JD 进行 30 分钟评审，记录三条可执行修改建议。", fit: "职业准备低于 65 分时推荐", gpa: "无绩点要求", tags: ["导师", "作品集", "反馈"] },
+      { id: "job-r8", type: "志愿", title: "开源社区协作志愿者", provider: "开源社团 / 公益技术社区", detail: "从文档、Issue 或测试入手，留下公开协作记录和一次贡献复盘。", fit: "补充沟通协作和公开成果", gpa: "无绩点要求", tags: ["开源", "协作", "公开成果"] },
     ],
     roleModels: [
       { id: "job-m1", name: "赵宇（示例）", school: "内蒙古师范大学 · 2022 届", major: "计算机科学与技术", destination: "字节跳动产品经理（示例）", similarity: 88, achievements: ["完成 3 个完整项目", "获得计算机设计大赛省赛奖项", "通过 4 次模拟面试迭代简历"], turningPoint: "大二暑期把课程作业升级成真实项目", turningPointDetail: "不再只追求代码完成，而是访谈用户、上线测试并记录数据，项目开始能在简历和面试中被验证。" },
@@ -106,7 +123,7 @@ export default function TaskMatchPage() {
   const [direction, setDirection] = useState<DirectionId>("postgraduate");
   const [assessment, setAssessment] = useState<Assessment>(defaultAssessment);
   const [completed, setCompleted] = useState<string[]>([]);
-  const [resourceType, setResourceType] = useState<"全部" | "网课" | "竞赛">("全部");
+  const [resourceType, setResourceType] = useState<"全部" | ResourceType>("全部");
   const [selectedModel, setSelectedModel] = useState<RoleModel | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -136,6 +153,7 @@ export default function TaskMatchPage() {
   const readiness = useMemo(() => Math.round(metrics.reduce((sum, metric) => sum + assessment[metric], 0) / metrics.length), [assessment]);
   const focusMetric = useMemo(() => metrics.reduce((best, metric) => assessment[metric] < assessment[best] ? metric : best, metrics[0]), [assessment]);
   const filteredResources = plan.resources.filter(item => resourceType === "全部" || item.type === resourceType);
+  const resourceTypes = ["全部", ...Array.from(new Set(plan.resources.map(item => item.type)))];
 
   const toggleTask = (id: string) => setCompleted(current => current.includes(id) ? current.filter(item => item !== id) : [...current, id]);
 
@@ -154,7 +172,7 @@ export default function TaskMatchPage() {
 
       <section className="task-match-section"><header className="task-match-section-head"><div><span>01 · NEXT ACTIONS</span><h2>为「{selectedDirection.label}」准备的任务</h2><p>任务优先级会参考你的能力差距、方向门槛和预计投入时间。</p></div><a href="/ai">查看完整决策依据 <ArrowUpRight size={15} /></a></header><div className="task-list">{plan.tasks.map((task, index) => { const done = completed.includes(task.id); const currentScore = assessment[task.metric]; const gap = Math.max(0, task.threshold - currentScore); return <article className={`task-card portal-card ${done ? "completed" : ""}`} key={task.id}><div className="task-card-index">{done ? <CheckCircle size={22} weight="fill" /> : String(index + 1).padStart(2, "0")}</div><div className="task-card-main"><div className="task-card-meta"><span>{task.stage}</span><em className={`task-priority ${task.priority === "高" ? "high" : ""}`}>{task.priority}优先</em></div><h3>{task.title}</h3><p>{task.detail}</p><div className="task-card-deliverable"><FlagBanner size={15} /><span>验收物：{task.deliverable}</span></div><div className="task-card-tags"><span>{task.metric} 当前 {currentScore} / 门槛 {task.threshold}</span><span>预计 {task.weeks} 周</span>{gap > 0 && <span>仍差 {gap} 分</span>}</div></div><button className="task-complete-button" onClick={() => toggleTask(task.id)}>{done ? "已加入计划" : "加入计划"}</button></article>; })}</div></section>
 
-      <section className="task-match-section"><header className="task-match-section-head"><div><span>02 · LEARNING & OPPORTUNITIES</span><h2>网课与竞赛推荐</h2><p>优先展示能补齐当前差距、并且可以沉淀成果的机会。</p></div><div className="task-resource-tabs">{["全部", "网课", "竞赛"].map(item => <button className={resourceType === item ? "active" : ""} key={item} onClick={() => setResourceType(item as "全部" | "网课" | "竞赛")}>{item}</button>)}</div></header><div className="task-resource-grid">{filteredResources.map(item => <article className="task-resource-card portal-card" key={item.id}><div className={`task-resource-icon ${item.type === "竞赛" ? "competition" : "course"}`}>{item.type === "竞赛" ? <Medal size={22} weight="duotone" /> : <BookOpenText size={22} weight="duotone" />}</div><div className="task-resource-body"><div className="task-resource-meta"><span>{item.type}</span><small>{item.provider}</small></div><h3>{item.title}</h3><p>{item.detail}</p><div className="task-resource-tags">{item.tags.map(tag => <span key={tag}>{tag}</span>)}</div><footer><span><GraduationCap size={14} />{item.gpa}</span><em>{item.fit}</em></footer></div></article>)}</div></section>
+      <section className="task-match-section"><header className="task-match-section-head"><div><span>02 · LEARNING & OPPORTUNITIES</span><h2>多元成长机会推荐</h2><p>不只学习和竞赛，也可以通过实践、证书、导师和志愿服务沉淀可验证成果。</p></div><div className="task-resource-tabs">{resourceTypes.map(item => <button className={resourceType === item ? "active" : ""} key={item} onClick={() => setResourceType(item as "全部" | ResourceType)}>{item}</button>)}</div></header><div className="task-resource-grid">{filteredResources.map(item => <article className="task-resource-card portal-card" key={item.id}><div className={`task-resource-icon ${item.type === "竞赛" ? "competition" : item.type === "证书" ? "certificate" : item.type === "导师" ? "mentor" : item.type === "志愿" ? "volunteer" : "course"}`}>{item.type === "竞赛" ? <Medal size={22} weight="duotone" /> : item.type === "证书" ? <GraduationCap size={22} weight="duotone" /> : item.type === "导师" ? <UsersThree size={22} weight="duotone" /> : item.type === "实践" || item.type === "志愿" ? <FlagBanner size={22} weight="duotone" /> : <BookOpenText size={22} weight="duotone" />}</div><div className="task-resource-body"><div className="task-resource-meta"><span>{item.type}</span><small>{item.provider}</small></div><h3>{item.title}</h3><p>{item.detail}</p><div className="task-resource-tags">{item.tags.map(tag => <span key={tag}>{tag}</span>)}</div><footer><span><GraduationCap size={14} />{item.gpa}</span><em>{item.fit}</em></footer></div></article>)}</div></section>
 
       <section className="task-match-section"><header className="task-match-section-head"><div><span>03 · ROLE MODEL MATCH</span><h2>与你经历相似的学长学姐</h2><p>案例为平台演示数据，匹配参考专业、发展方向和行动路径；真实信息请以本人或官方渠道为准。</p></div><span className="task-model-note"><UsersThree size={16} /> 相似度由公开经历标签计算</span></header><div className="task-model-grid">{plan.roleModels.map(model => <article className={`task-model-card portal-card ${selectedModel?.id === model.id ? "selected" : ""}`} key={model.id}><header><span className="task-model-avatar">{model.name.slice(0, 1)}</span><div><h3>{model.name}</h3><p>{model.school} · {model.major}</p></div><strong>{model.similarity}%<small>经历相似</small></strong></header><div className="task-model-destination"><span>最终去向</span><b>{model.destination}</b></div><div className="task-model-achievements"><span>代表成就</span>{model.achievements.map(item => <p key={item}><CheckCircle size={13} weight="fill" />{item}</p>)}</div><button className="task-model-button" onClick={() => setSelectedModel(selectedModel?.id === model.id ? null : model)}>查看改变人生的节点 <ArrowUpRight size={14} /></button>{selectedModel?.id === model.id && <div className="task-model-turning-point"><div><TrendUp size={17} /><span>关键转折点</span></div><b>{model.turningPoint}</b><p>{model.turningPointDetail}</p></div>}</article>)}</div></section>
 

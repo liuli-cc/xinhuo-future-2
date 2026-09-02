@@ -740,6 +740,9 @@ html[data-motion-preference="reduced"] .route-transition-streak { display: none;
 .task-resource-card { display: grid; grid-template-columns: 42px minmax(0, 1fr); gap: 12px; padding: 16px; }
 .task-resource-icon { display: grid; width: 38px; height: 38px; place-items: center; border-radius: 11px; color: var(--accent); background: var(--accent-soft); }
 .task-resource-icon.competition { color: var(--amber); background: var(--amber-soft); }
+.task-resource-icon.certificate { color: var(--green); background: var(--green-soft); }
+.task-resource-icon.mentor { color: var(--violet); background: var(--violet-soft); }
+.task-resource-icon.volunteer { color: var(--cyan); background: var(--cyan-soft); }
 .task-resource-meta small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .task-resource-meta span { color: var(--accent); font-weight: 760; }
 .task-resource-card h3 { margin: 6px 0 5px; font-size: .9rem; }
