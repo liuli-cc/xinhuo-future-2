@@ -1,268 +1,289 @@
 "use client";
 
+/** 求职工作台：岗位投递 + 公告投递（两层进度）+ 我的收藏 + 自定义岗位导入。 */
+
 import { apiFetch } from "@/modules/shared/api/bmob-api";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import PortalFrame from "@/modules/shared/components/PortalFrame";
-import { AnimatedBarChart, AnimatedDonutChart } from "@/modules/shared/components/DataViz";
 import CareerJobDiscovery, { type JobImportDraft } from "./CareerJobDiscovery";
+import { formatDay, type ApplicationRecord, type Job, type Announcement, type Stage, type StageOption, type TimelineEvent } from "../client/types";
 
-type Requirement = { id: string; label: string; dimension: string; priority: "required" | "preferred"; keywords: string[] };
-type MatchResult = {
-  engineVersion: string;
-  modelMode: "deterministic";
-  overallScore: number;
-  confidence: number;
-  verdict: string;
-  formula: string;
-  requirements: Requirement[];
-  dimensions: Array<{ name: string; score: number; weight: number; evidenceBasis: string }>;
-  strengths: string[];
-  gaps: Array<{ id: string; label: string; dimension: string; priority: "required" | "preferred"; recommendation: string }>;
-  manualChecks: string[];
-  evidenceBasis: { verifiedEvidence: number; portraitConfidence: number; matchedRequirements: number; totalRequirements: number };
-  calculatedAt: string;
-};
-type ApplicationStatus = "saved" | "applied" | "written_test" | "interview" | "offer" | "rejected" | "withdrawn";
-type Application = {
-  id: string; jobId: string; status: ApplicationStatus; note: string; submittedAt: number | null; lastEventAt: number | null;
-  createdAt: number; updatedAt: number; title: string; company: string; city: string; employmentType: string;
-  sourceUrl: string; matchScore: number | null; matchVerdict: string | null; latestEventNote: string;
-};
-type Job = {
-  id: string; title: string; company: string; city: string; employmentType: string; salary: string;
-  sourceUrl: string; sourceName: string; description: string; requirements: Requirement[]; createdAt: number; updatedAt: number;
-  match: { overallScore: number; confidence: number; verdict: string; result: MatchResult; updatedAt: number } | null;
-  application: { id: string; status: ApplicationStatus; note: string; submittedAt: number | null; lastEventAt: number | null; updatedAt: number } | null;
+type Tracker = {
+  applications: ApplicationRecord[];
+  counts: Record<string, number>;
+  stageOptions: StageOption[];
 };
 
-const statusLabels: Record<ApplicationStatus, string> = {
-  saved: "待投递", applied: "已投递", written_test: "笔试/测评", interview: "面试中", offer: "获得 Offer", rejected: "未通过", withdrawn: "已撤回",
-};
-const statusColors: Record<ApplicationStatus, string> = {
-  saved: "var(--chart-blue-6)",
-  applied: "var(--chart-blue-2)",
-  written_test: "var(--chart-blue-3)",
-  interview: "var(--chart-blue-4)",
-  offer: "var(--chart-blue-1)",
-  rejected: "var(--chart-blue-5)",
-  withdrawn: "var(--chart-neutral)",
-};
-const statusOrder: ApplicationStatus[] = ["saved", "applied", "written_test", "interview", "offer", "rejected", "withdrawn"];
-const blankJob = { title: "", company: "", city: "", employmentType: "实习", salary: "", sourceUrl: "", sourceName: "学生导入", description: "" };
+const outcomeChips = [
+  { value: "rejected", label: "未通过" },
+  { value: "withdrawn", label: "已终止" },
+];
 
-function formatDate(value: number | null) {
-  return value ? new Date(value).toLocaleDateString("zh-CN", { month: "numeric", day: "numeric" }) : "尚未记录";
+const blankJob = { title: "", company: "", city: "", employmentType: "实习", salary: "", sourceUrl: "", sourceName: "学生导入", description: "", majorsText: "" };
+
+function statusColor(record: { outcome: string | null; stage: Stage }) {
+  if (record.outcome === "rejected") return "var(--chart-blue-5, #ef4444)";
+  if (record.outcome === "withdrawn") return "var(--chart-neutral, #94a3b8)";
+  if (record.stage === "offer") return "var(--chart-blue-1, #16a34a)";
+  return "var(--chart-blue-2, #2563eb)";
 }
 
-function matchResult(job: Job) {
-  return job.match?.result ?? null;
-}
-
-export default function CareerWorkbench() {
-  const [tab, setTab] = useState<"jobs" | "applications" | "method">("jobs");
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [applications, setApplications] = useState<Application[]>([]);
-  const [jobForm, setJobForm] = useState(blankJob);
-  const [showImport, setShowImport] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [activeJobId, setActiveJobId] = useState<string | null>(null);
-  const [busyId, setBusyId] = useState<string | null>(null);
+export default function CareerWorkbench({ onToast }: { onToast: (message: string) => void }) {
+  const [jobTracker, setJobTracker] = useState<Tracker>({ applications: [], counts: {}, stageOptions: [] });
+  const [annTracker, setAnnTracker] = useState<Tracker>({ applications: [], counts: {}, stageOptions: [] });
+  const [filter, setFilter] = useState<Record<string, string>>({ job: "", announcement: "" });
+  const [favorites, setFavorites] = useState<{ jobs: Job[]; announcements: Announcement[] }>({ jobs: [], announcements: [] });
   const [notes, setNotes] = useState<Record<string, string>>({});
-  const [statusDrafts, setStatusDrafts] = useState<Record<string, ApplicationStatus>>({});
+  const [stageDrafts, setStageDrafts] = useState<Record<string, string>>({});
+  const [timeline, setTimeline] = useState<Record<string, TimelineEvent[]>>({});
+  const [openTimeline, setOpenTimeline] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [toast, setToast] = useState("");
+  const [busyId, setBusyId] = useState("");
+  const [showImport, setShowImport] = useState(false);
+  const [jobForm, setJobForm] = useState(blankJob);
+  const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
-    const [jobsResponse, applicationsResponse] = await Promise.all([apiFetch("/api/career/jobs"), apiFetch("/api/career/applications")]);
-    const jobsBody = await jobsResponse.json() as { jobs?: Job[]; error?: string };
-    const applicationsBody = await applicationsResponse.json() as { applications?: Application[]; error?: string };
-    if (!jobsResponse.ok) throw new Error(jobsBody.error || "岗位工作台读取失败");
-    if (!applicationsResponse.ok) throw new Error(applicationsBody.error || "投递工作台读取失败");
-    setJobs(jobsBody.jobs ?? []);
-    setApplications(applicationsBody.applications ?? []);
+    const [jobsRes, annRes, favJobsRes, favAnnRes] = await Promise.all([
+      apiFetch("/api/career/applications"),
+      apiFetch("/api/career/announcement-applications"),
+      apiFetch("/api/career/favorites"),
+      apiFetch("/api/career/announcement-favorites"),
+    ]);
+    const [jobsBody, annBody, favJobsBody, favAnnBody] = await Promise.all([
+      jobsRes.json(), annRes.json(), favJobsRes.json(), favAnnRes.json(),
+    ]);
+    if (!jobsRes.ok) throw new Error(jobsBody.error || "投递档案读取失败");
+    if (!annRes.ok) throw new Error(annBody.error || "公告投递读取失败");
+    setJobTracker({ applications: jobsBody.applications ?? [], counts: jobsBody.counts ?? {}, stageOptions: jobsBody.stageOptions ?? [] });
+    setAnnTracker({ applications: annBody.applications ?? [], counts: annBody.counts ?? {}, stageOptions: annBody.stageOptions ?? [] });
+    setFavorites({ jobs: favJobsBody.favorites ?? [], announcements: favAnnBody.favorites ?? [] });
   }, []);
 
   useEffect(() => {
-    load().catch(reason => setError(reason instanceof Error ? reason.message : "职业数据读取失败")).finally(() => setLoading(false));
+    load().catch(reason => setError(reason instanceof Error ? reason.message : "数据读取失败")).finally(() => setLoading(false));
   }, [load]);
 
-  const counts = useMemo(() => Object.fromEntries(statusOrder.map(status => [status, applications.filter(item => item.status === status).length])) as Record<ApplicationStatus, number>, [applications]);
-  const verifiedEvidence = useMemo(() => jobs.reduce((sum, job) => sum + (matchResult(job)?.evidenceBasis.verifiedEvidence ?? 0), 0), [jobs]);
+  const stageChips = useMemo(() => {
+    const options = jobTracker.stageOptions;
+    const chips: Array<{ value: string; label: string; count: number }> = [{ value: "", label: "全部", count: Object.values(jobTracker.counts).reduce((sum, value) => sum + value, 0) }];
+    for (const option of options) chips.push({ ...option, count: jobTracker.counts[option.value] ?? 0 });
+    for (const outcome of outcomeChips) chips.push({ ...outcome, count: jobTracker.counts[outcome.value] ?? 0 });
+    return chips;
+  }, [jobTracker]);
 
-  const notify = (message: string) => {
-    setToast(message);
-    window.setTimeout(() => setToast(""), 2600);
-  };
+  const annChips = useMemo(() => {
+    const chips: Array<{ value: string; label: string; count: number }> = [{ value: "", label: "全部", count: Object.values(annTracker.counts).reduce((sum, value) => sum + value, 0) }];
+    for (const option of annTracker.stageOptions) chips.push({ ...option, count: annTracker.counts[option.value] ?? 0 });
+    for (const outcome of outcomeChips) chips.push({ ...outcome, count: annTracker.counts[outcome.value] ?? 0 });
+    return chips;
+  }, [annTracker]);
 
   const useParsedDraft = (draft: JobImportDraft) => {
     setJobForm(current => ({
       ...current,
-      title: draft.title || current.title,
-      company: draft.company || current.company,
-      city: draft.city || current.city,
-      employmentType: draft.employmentType || current.employmentType,
-      salary: draft.salary || current.salary,
-      sourceUrl: draft.sourceUrl || current.sourceUrl,
-      sourceName: draft.sourceName || current.sourceName,
+      title: draft.title || current.title, company: draft.company || current.company,
+      city: draft.city || current.city, employmentType: draft.employmentType || current.employmentType,
+      salary: draft.salary || current.salary, sourceUrl: draft.sourceUrl || current.sourceUrl,
       description: draft.description || current.description,
     }));
     setShowImport(true);
-    notify("岗位基本信息已填入，请人工核对后再保存");
+    onToast("岗位基本信息已填入，请人工核对后再保存");
   };
 
   const importJob = async (event: FormEvent) => {
     event.preventDefault();
     setSaving(true); setError("");
     try {
-      const response = await apiFetch("/api/career/jobs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(jobForm) });
-      const body = await response.json() as { error?: string };
+      const response = await apiFetch("/api/career/jobs", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(jobForm),
+      });
+      const body = await response.json();
       if (!response.ok) throw new Error(body.error || "岗位导入失败");
       setJobForm(blankJob); setShowImport(false); await load();
-      notify("岗位原文已保存；下一步可开始证据型匹配");
+      onToast("已保存为你的自定义岗位（仅自己可见），可投递并跟踪");
     } catch (reason) { setError(reason instanceof Error ? reason.message : "岗位导入失败"); }
     finally { setSaving(false); }
   };
 
-  const analyse = async (job: Job) => {
-    setBusyId(`match-${job.id}`); setError("");
-    try {
-      const response = await apiFetch(`/api/career/jobs/${job.id}/match`, { method: "POST" });
-      const body = await response.json() as { error?: string };
-      if (!response.ok) throw new Error(body.error || "岗位匹配失败");
-      await load(); setActiveJobId(job.id); notify("匹配已按已核验成长佐证重新计算");
-    } catch (reason) { setError(reason instanceof Error ? reason.message : "岗位匹配失败"); }
-    finally { setBusyId(null); }
-  };
-
-  const createApplication = async (job: Job) => {
-    setBusyId(`apply-${job.id}`); setError("");
-    try {
-      const response = await apiFetch("/api/career/applications", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jobId: job.id }) });
-      const body = await response.json() as { error?: string };
-      if (!response.ok) throw new Error(body.error || "投递记录创建失败");
-      await load(); setTab("applications"); notify("已加入个人投递工作台");
-    } catch (reason) { setError(reason instanceof Error ? reason.message : "投递记录创建失败"); }
-    finally { setBusyId(null); }
-  };
-
-  const addGapTasks = async (job: Job) => {
-    setBusyId(`gap-${job.id}`); setError("");
-    try {
-      const response = await apiFetch(`/api/career/jobs/${job.id}/gap-tasks`, { method: "POST" });
-      const body = await response.json() as { tasks?: unknown[]; error?: string };
-      if (!response.ok) throw new Error(body.error || "补强任务创建失败");
-      notify(`已把 ${body.tasks?.length ?? 0} 项岗位缺口加入成长地图，仍需提交佐证并审核`);
-    } catch (reason) { setError(reason instanceof Error ? reason.message : "补强任务创建失败"); }
-    finally { setBusyId(null); }
-  };
-
-  const updateApplication = async (application: Application, status: ApplicationStatus) => {
-    const note = (notes[application.id] ?? application.note ?? "").trim();
+  const saveStage = async (kind: "job" | "announcement", record: ApplicationRecord) => {
+    const draft = stageDrafts[record.id] ?? "";
+    const isOutcome = draft === "rejected" || draft === "withdrawn";
+    const note = (notes[record.id] ?? record.note ?? "").trim();
     if (note.length < 2) return setError("请先写下至少 2 个字的阶段反馈或复盘");
-    setBusyId(`event-${application.id}`); setError("");
+    setBusyId(record.id); setError("");
     try {
-      const response = await apiFetch(`/api/career/applications/${application.id}/events`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status, note }) });
-      const body = await response.json() as { error?: string };
+      const path = kind === "job"
+        ? `/api/career/applications/${record.id}/events`
+        : `/api/career/announcement-applications/${record.id}/events`;
+      const payload = isOutcome ? { outcome: draft, note } : { stage: draft || record.stage, note };
+      const response = await apiFetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      const body = await response.json();
       if (!response.ok) throw new Error(body.error || "投递阶段保存失败");
-      await load(); notify("投递阶段与复盘已保存");
+      onToast("投递进度与复盘已保存");
+      await load();
     } catch (reason) { setError(reason instanceof Error ? reason.message : "投递阶段保存失败"); }
-    finally { setBusyId(null); }
+    finally { setBusyId(""); }
   };
 
-  return <PortalFrame active="career" eyebrow="CAREER LOOP · XH-JFM-1.0" title="实习就业工作台" subtitle="保存真实岗位，依据已核验成长佐证匹配，再把投递结果反哺成长地图。" actions={<button className="primary-action" onClick={() => setShowImport(value => !value)}>＋ 导入真实岗位</button>}>
-    {error && <div className="account-feedback error" role="alert">{error}</div>}
-    <section className="career-loop-intro">
-      <div><b>不抓取、不代投、不编造经历。</b><p>岗位原文由你保存；匹配分数只读取通过审核的成长佐证，AI不能改写最终分数。</p></div>
-      <Link href="/growth-map">查看成长地图 →</Link>
-    </section>
+  const loadTimeline = async (kind: "job" | "announcement", record: ApplicationRecord) => {
+    const key = `${kind}-${record.id}`;
+    if (openTimeline === key) return setOpenTimeline(null);
+    setOpenTimeline(key);
+    if (timeline[key]) return;
+    setBusyId(key);
+    try {
+      const path = kind === "job"
+        ? `/api/career/applications/${record.id}/events`
+        : `/api/career/announcement-applications/${record.id}/events`;
+      const response = await apiFetch(path);
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error || "时间线读取失败");
+      setTimeline(current => ({ ...current, [key]: body.events ?? [] }));
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "时间线读取失败"); }
+    finally { setBusyId(""); }
+  };
 
-    <CareerJobDiscovery onUseDraft={useParsedDraft} />
+  const removeFavorite = async (kind: "job" | "announcement", targetId: string) => {
+    setBusyId(`fav-${targetId}`);
+    try {
+      const path = kind === "job" ? `/api/career/favorites/${targetId}` : `/api/career/announcement-favorites/${targetId}`;
+      const response = await apiFetch(path, { method: "DELETE" });
+      if (!response.ok) throw new Error((await response.json()).error || "取消收藏失败");
+      onToast("已取消收藏");
+      await load();
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "取消收藏失败"); }
+    finally { setBusyId(""); }
+  };
 
-    {showImport && <form className="career-import" onSubmit={importJob}>
-      <div className="career-import-head"><div><h2>导入一个真实岗位</h2><p>粘贴企业官方页面、学校就业信息或你确认过的岗位原文；平台不会自动访问外部招聘网站。</p></div><button type="button" className="ghost-action" onClick={() => setShowImport(false)}>收起</button></div>
-      <div className="career-form-grid">
-        <label><span>岗位名称 *</span><input value={jobForm.title} onChange={event => setJobForm({ ...jobForm, title: event.target.value })} placeholder="如：后端开发实习生" maxLength={100} /></label>
-        <label><span>公司 / 单位 *</span><input value={jobForm.company} onChange={event => setJobForm({ ...jobForm, company: event.target.value })} placeholder="如：某科技公司" maxLength={80} /></label>
-        <label><span>城市</span><input value={jobForm.city} onChange={event => setJobForm({ ...jobForm, city: event.target.value })} placeholder="如：呼和浩特" maxLength={40} /></label>
-        <label><span>岗位类型</span><select value={jobForm.employmentType} onChange={event => setJobForm({ ...jobForm, employmentType: event.target.value })}><option>实习</option><option>校招</option><option>兼职</option><option>科研助理</option></select></label>
-        <label><span>薪资（选填）</span><input value={jobForm.salary} onChange={event => setJobForm({ ...jobForm, salary: event.target.value })} placeholder="如：200-300/天" maxLength={40} /></label>
-        <label><span>岗位链接（选填）</span><input value={jobForm.sourceUrl} onChange={event => setJobForm({ ...jobForm, sourceUrl: event.target.value })} placeholder="https://..." inputMode="url" maxLength={500} /></label>
-        <label className="wide"><span>来源说明</span><input value={jobForm.sourceName} onChange={event => setJobForm({ ...jobForm, sourceName: event.target.value })} placeholder="如：学校就业中心、企业官网、老师推荐" maxLength={60} /></label>
-        <label className="wide"><span>岗位原文 *</span><textarea value={jobForm.description} onChange={event => setJobForm({ ...jobForm, description: event.target.value })} placeholder="粘贴岗位职责、任职要求和其他关键信息（至少 30 个字）" maxLength={12000} /></label>
+  const renderTracker = (kind: "job" | "announcement", tracker: Tracker, chips: Array<{ value: string; label: string; count: number }>) => {
+    const active = filter[kind] ?? "";
+    const records = !active ? tracker.applications
+      : tracker.applications.filter(item => (item.outcome || item.stage) === active);
+    return <>
+      <div className="career-pipeline-head">
+        {chips.map(chip => (
+          <span key={`${kind}-${chip.value}`} style={{ cursor: "pointer", opacity: active === chip.value ? 1 : 0.75 }}
+                onClick={() => setFilter(current => ({ ...current, [kind]: chip.value }))}>
+            <b>{chip.count}</b>{chip.label}
+          </span>))}
       </div>
-      <footer><small>岗位文字仅作为匹配材料保存，不会被当作系统指令执行。</small><button className="primary-action" disabled={saving}>{saving ? "正在保存…" : "保存岗位并建立快照"}</button></footer>
-    </form>}
+      {!records.length ? <div className="career-empty"><span>○</span><h2>这里还没有记录</h2><p>去「岗位」或「校招公告」标签挑选目标，点「投递」后开始跟踪。</p></div> : <div className="career-application-list">
+        {records.map(record => {
+          const key = `${kind}-${record.id}`;
+          const draft = stageDrafts[record.id] ?? record.stage;
+          const closed = Boolean(record.outcome);
+          return <article key={record.id}>
+            <header>
+              <div>
+                <span className="application-status" style={{ background: statusColor(record), color: "#fff" }}>
+                  {record.outcomeLabel || record.stageLabel}
+                </span>
+                <h2>{record.title}</h2>
+                <p>{record.company}{record.city ? ` · ${record.city}` : ""}{record.cohort ? ` · ${record.cohort}` : ""}
+                  {record.matchScore != null ? ` · 匹配 ${record.matchScore} 分` : ""}</p>
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="ghost-action" disabled={busyId === key} onClick={() => loadTimeline(kind, record)}>
+                  {openTimeline === key ? "收起时间线" : `时间线（${record.eventCount}）`}</button>
+                {kind === "job" && <Link className="ghost-action" href={`/interview?applicationId=${encodeURIComponent(record.id)}`}>模拟面试</Link>}
+              </div>
+            </header>
+            {openTimeline === key && <div className="career-manual-checks" style={{ margin: "8px 0" }}>
+              <span>投递时间线</span>
+              {(timeline[key] ?? []).map(event => (
+                <p key={event.id}>· {formatDay(event.createdAt)} → {event.stage}{event.note ? `：${event.note}` : ""}</p>))}
+              {busyId === key && !timeline[key] && <p>正在读取…</p>}
+            </div>}
+            <div className="application-event">
+              <label><span>{closed ? "该投递已结束" : "更新到哪个阶段"}</span>
+                <select disabled={closed} value={closed ? record.outcomeLabel || record.stageLabel : draft}
+                        onChange={event => setStageDrafts(current => ({ ...current, [record.id]: event.target.value }))}>
+                  <option value={record.stage}>{record.stageLabel}</option>
+                  {tracker.stageOptions.filter(option => option.value !== record.stage).map(option => (
+                    <option key={option.value} value={option.value}>{option.label}</option>))}
+                  {!closed && outcomeChips.map(outcome => <option key={outcome.value} value={outcome.value}>{outcome.label}</option>)}
+                </select></label>
+              <label><span>本阶段反馈 / 复盘</span>
+                <textarea value={notes[record.id] ?? record.note} maxLength={500} disabled={closed}
+                          onChange={event => setNotes(current => ({ ...current, [record.id]: event.target.value }))}
+                          placeholder="如：已完成线上笔试；技术题需补强数据库索引" /></label>
+              <button className="primary-action" disabled={closed || busyId === record.id} onClick={() => saveStage(kind, record)}>
+                {busyId === record.id ? "保存中…" : "保存阶段与复盘"}</button>
+            </div>
+            <footer><span>最近记录：{record.note || "暂无补充"}</span><span>更新时间：{formatDay(record.lastEventAt ?? record.updatedAt)}</span></footer>
+          </article>;
+        })}
+      </div>}
+    </>;
+  };
 
-    <section className="career-loop-stats">
-      <article><span>已保存岗位</span><strong>{jobs.length}</strong><small>每个岗位保留原文快照</small></article>
-      <article><span>已完成匹配</span><strong>{jobs.filter(job => job.match).length}</strong><small>算法版本 XH-JFM-1.0</small></article>
-      <article><span>进行中投递</span><strong>{applications.filter(item => ["applied", "written_test", "interview"].includes(item.status)).length}</strong><small>结果会持续记录</small></article>
-      <article><span>证据基数</span><strong>{verifiedEvidence || "—"}</strong><small>仅统计参与匹配的已核验证据</small></article>
+  return <>
+    {error && <div className="account-feedback error" role="alert">{error}</div>}
+    <p style={{ fontSize: 13, color: "#64748b", margin: "0 0 10px" }}>
+      岗位投递与公告投递分开跟踪，复盘沉淀为你的就业档案。
+    </p>
+
+    <section className="career-workspace-tabs" aria-label="工作台分区">
+      <button className="active">岗位投递 <b>{jobTracker.applications.length}</b></button>
     </section>
 
-    <section className="career-viz-grid">
-      <AnimatedBarChart
-        title="岗位匹配得分"
-        description="只显示已完成确定性匹配的岗位，悬停查看可信度。"
-        max={100}
-        data={jobs.filter(job => job.match).slice(0, 6).map(job => ({ label: job.title, value: job.match?.overallScore ?? 0, detail: `${job.company}，可信度 ${job.match?.confidence ?? 0}%` }))}
-      />
-      <AnimatedDonutChart
-        title="投递阶段分布"
-        description="每次更新投递阶段与复盘后自动重绘。"
-        centerLabel="投递记录"
-        data={statusOrder.map(status => ({ label: statusLabels[status], value: counts[status], detail: `${statusLabels[status]}阶段的真实投递记录`, color: statusColors[status] }))}
-      />
-    </section>
+    {loading ? <div className="career-loading">正在读取你的投递档案…</div> : <>
+      {renderTracker("job", jobTracker, stageChips)}
 
-    <section className="career-workspace-tabs" aria-label="实习就业工作台分区">
-      <button className={tab === "jobs" ? "active" : ""} onClick={() => setTab("jobs")}>岗位库 <b>{jobs.length}</b></button>
-      <button className={tab === "applications" ? "active" : ""} onClick={() => setTab("applications")}>投递进度 <b>{applications.length}</b></button>
-      <button className={tab === "method" ? "active" : ""} onClick={() => setTab("method")}>评分方法</button>
-    </section>
+      <section className="career-workspace-tabs" aria-label="公告投递分区" style={{ marginTop: 20 }}>
+        <button className="active">公告投递 <b>{annTracker.applications.length}</b></button>
+      </section>
+      {renderTracker("announcement", annTracker, annChips)}
 
-    {loading ? <div className="career-loading">正在读取你的云端岗位与投递档案…</div> : tab === "jobs" ? <section className="career-job-list">
-      {!jobs.length ? <div className="career-empty"><span>↗</span><h2>从一条真实岗位开始</h2><p>导入岗位原文后，平台会保存快照，并用你的已核验成长佐证计算匹配依据。</p><button className="primary-action" onClick={() => setShowImport(true)}>导入第一个岗位</button></div> : jobs.map(job => {
-        const detail = matchResult(job);
-        const open = activeJobId === job.id;
-        return <article className={`career-job-record ${open ? "open" : ""}`} key={job.id}>
-          <div className="career-job-summary">
-            <div className="career-company-mark">{job.company.slice(0, 1)}</div>
-            <div className="career-job-copy"><div><span>{job.employmentType}</span>{job.city && <small>{job.city}</small>}{job.salary && <small>{job.salary}</small>}</div><h2>{job.title}</h2><p>{job.company} · 来源：{job.sourceName}</p></div>
-            <div className="career-match-badge">{job.match ? <><strong>{job.match.overallScore}</strong><span>{job.match.verdict}</span><small>可信度 {job.match.confidence}%</small></> : <><strong>—</strong><span>待匹配</span><small>尚未计算</small></>}</div>
-            <div className="career-job-actions"><button className="ghost-action" onClick={() => setActiveJobId(open ? null : job.id)}>{open ? "收起" : "查看"}</button><button className="primary-action" disabled={busyId === `match-${job.id}`} onClick={() => analyse(job)}>{busyId === `match-${job.id}` ? "计算中…" : job.match ? "重新匹配" : "开始匹配"}</button></div>
-          </div>
-          {open && <div className="career-job-detail">
-            <div className="career-job-source"><div><span>岗位原文快照</span><p>{job.description}</p></div>{job.sourceUrl && <a href={job.sourceUrl} target="_blank" rel="noreferrer">打开原始链接 ↗</a>}</div>
-            <div className="career-requirements"><span>识别到的岗位能力</span><div>{job.requirements.map(item => <b key={item.id} className={item.priority}>{item.label}<small>{item.priority === "required" ? "重点" : "加分"}</small></b>)}</div></div>
-            {detail ? <div className="career-match-detail">
-              <header><div><span>证据型匹配报告</span><h3>{detail.verdict} · {detail.overallScore} 分</h3><p>{detail.formula}</p></div><small>{detail.engineVersion} · 计算可信度 {detail.confidence}%</small></header>
-              <div className="career-score-grid">{detail.dimensions.map(item => <article key={item.name}><div><b>{item.name}</b><strong>{item.score}</strong></div><i><em style={{ width: `${item.score}%` }} /></i><p>{item.weight}% 权重 · {item.evidenceBasis}</p></article>)}</div>
-              <div className="career-match-notes"><section><h4>已有优势</h4>{detail.strengths.map(item => <p key={item}>✓ {item}</p>)}</section><section><h4>待补强缺口</h4>{detail.gaps.length ? detail.gaps.map(item => <p key={item.id}><b>{item.label}</b>：{item.recommendation}</p>) : <p>当前未识别到主要岗位缺口，仍请核对企业官方资格要求。</p>}</section></div>
-              <div className="career-manual-checks"><span>投递前仍需人工确认</span>{detail.manualChecks.map(item => <p key={item}>• {item}</p>)}</div>
-              <footer><button className="ghost-action" disabled={busyId === `gap-${job.id}`} onClick={() => addGapTasks(job)}>{busyId === `gap-${job.id}` ? "正在加入…" : "将缺口加入成长地图"}</button>{job.application ? <button className="primary-action" onClick={() => setTab("applications")}>查看投递进度</button> : <button className="primary-action" disabled={busyId === `apply-${job.id}`} onClick={() => createApplication(job)}>{busyId === `apply-${job.id}` ? "正在加入…" : "加入投递工作台"}</button>}</footer>
-            </div> : <div className="career-match-empty"><b>尚未计算匹配</b><p>点击“开始匹配”后，系统将从已审核的成长佐证中读取依据；没有证据时会明确显示低可信度，而不是生成默认高分。</p></div>}
-          </div>}
-        </article>;
-      })}
-    </section> : tab === "applications" ? <section className="career-applications">
-      <div className="career-pipeline-head">{statusOrder.slice(0, 5).map(status => <span key={status}><b>{counts[status]}</b>{statusLabels[status]}</span>)}</div>
-      {!applications.length ? <div className="career-empty"><span>○</span><h2>还没有投递记录</h2><p>在岗位详情中完成匹配后，选择“加入投递工作台”开始记录。</p><button className="primary-action" onClick={() => setTab("jobs")}>前往岗位库</button></div> : <div className="career-application-list">{applications.map(application => <article key={application.id}>
-        <header><div><span className={`application-status ${application.status}`}>{statusLabels[application.status]}</span><h2>{application.title}</h2><p>{application.company}{application.city ? ` · ${application.city}` : ""}{application.matchScore != null ? ` · 匹配 ${application.matchScore} 分` : ""}</p></div><Link className="ghost-action" href={`/interview?applicationId=${encodeURIComponent(application.id)}`}>岗位模拟面试</Link></header>
-        <div className="application-event"><label><span>更新到哪个阶段</span><select value={statusDrafts[application.id] ?? application.status} onChange={event => setStatusDrafts(current => ({ ...current, [application.id]: event.target.value as ApplicationStatus }))}>{statusOrder.map(status => <option value={status} key={status}>{statusLabels[status]}</option>)}</select></label><label><span>本阶段反馈 / 复盘</span><textarea value={notes[application.id] ?? application.note} onChange={event => setNotes(current => ({ ...current, [application.id]: event.target.value }))} placeholder="如：已完成线上笔试；技术题需补强数据库索引" maxLength={500} /></label><button className="primary-action" disabled={busyId === `event-${application.id}`} onClick={() => {
-          updateApplication(application, statusDrafts[application.id] ?? application.status);
-        }}>{busyId === `event-${application.id}` ? "保存中…" : "保存阶段与复盘"}</button></div>
-        <footer><span>最近记录：{application.latestEventNote || "暂无补充"}</span><span>更新时间：{formatDate(application.lastEventAt ?? application.updatedAt)}</span></footer>
-      </article>)}</div>}
-    </section> : <section className="career-method">
-      <article><span>01</span><div><h2>岗位原文保存</h2><p>系统不自动抓取外部招聘网站。学生自行导入确认过的岗位文字，平台保存岗位快照、来源和链接。</p></div></article>
-      <article><span>02</span><div><h2>确定性证据匹配</h2><p>技能 30%、项目经历 25%、沟通协作 15%、职业方向 30%。待审核、驳回或没有佐证的材料不参与评分。</p></div></article>
-      <article><span>03</span><div><h2>投递结果反哺成长</h2><p>岗位缺口会生成待佐证的成长任务；笔试、面试、Offer 与复盘形成个人就业档案，后续模拟面试可关联到具体岗位。</p></div></article>
-      <aside><b>为什么显示“可信度”</b><p>分数不等于事实。可信度由已核验证据数量、能力画像可信度和岗位原文完整度共同计算；证据不足时，系统明确提示而不装作了解你。</p></aside>
-    </section>}
-    {toast && <div className="portal-toast">✓ {toast}</div>}
-  </PortalFrame>;
+      <section className="career-workspace-tabs" aria-label="我的收藏分区" style={{ marginTop: 20 }}>
+        <button className="active">我的收藏 <b>{favorites.jobs.length + favorites.announcements.length}</b></button>
+      </section>
+      {!favorites.jobs.length && !favorites.announcements.length ? <div className="career-empty"><span>☆</span><h2>还没有收藏</h2><p>在岗位或公告卡片上点「☆ 收藏」，先加入心愿单。</p></div> : <div className="career-application-list">
+        {favorites.jobs.map(job => <article key={`job-${job.id}`}>
+          <header><div><span className="application-status">岗位</span><h2>{job.title}</h2>
+            <p>{job.company}{job.city ? ` · ${job.city}` : ""}</p></div>
+            <div style={{ display: "flex", gap: 8 }}>
+              {job.match && <span className="application-status">{job.match.verdict} {job.match.overallScore}分</span>}
+              <button className="ghost-action" disabled={busyId === `fav-${job.id}`} onClick={() => removeFavorite("job", job.id)}>取消收藏</button>
+            </div></header>
+        </article>)}
+        {favorites.announcements.map(item => <article key={`ann-${item.id}`}>
+          <header><div><span className="application-status">公告</span><h2>{item.title}</h2>
+            <p>{item.company}{item.cohort ? ` · ${item.cohort}` : ""}</p></div>
+            <button className="ghost-action" disabled={busyId === `fav-${item.id}`} onClick={() => removeFavorite("announcement", item.id)}>取消收藏</button>
+          </header>
+        </article>)}
+      </div>}
+
+      <section className="career-workspace-tabs" aria-label="自定义岗位分区" style={{ marginTop: 20 }}>
+        <button className="active">自定义岗位 <b>{favorites.jobs.filter(item => item.visibility === "private").length}</b></button>
+        <button className="primary-action" onClick={() => setShowImport(value => !value)}>＋ 导入真实岗位</button>
+      </section>
+      <p style={{ fontSize: 13, color: "#64748b", margin: "4px 0 10px" }}>
+        自己发现的好岗位可以存进这里（仅自己可见），同样参与匹配与投递跟踪。
+      </p>
+
+      <CareerJobDiscovery onUseDraft={useParsedDraft} />
+      {showImport && <form className="career-import" onSubmit={importJob}>
+        <div className="career-import-head"><div><h2>导入一个真实岗位</h2>
+          <p>粘贴企业官方页面、学校就业信息或你确认过的岗位原文；平台不会自动访问外部招聘网站。</p></div>
+          <button type="button" className="ghost-action" onClick={() => setShowImport(false)}>收起</button></div>
+        <div className="career-form-grid">
+          <label><span>岗位名称 *</span><input value={jobForm.title} onChange={event => setJobForm({ ...jobForm, title: event.target.value })} maxLength={100} /></label>
+          <label><span>公司 / 单位 *</span><input value={jobForm.company} onChange={event => setJobForm({ ...jobForm, company: event.target.value })} maxLength={80} /></label>
+          <label><span>城市</span><input value={jobForm.city} onChange={event => setJobForm({ ...jobForm, city: event.target.value })} maxLength={40} /></label>
+          <label><span>岗位类型</span><select value={jobForm.employmentType} onChange={event => setJobForm({ ...jobForm, employmentType: event.target.value })}><option>实习</option><option>校招</option><option>兼职</option><option>科研助理</option></select></label>
+          <label><span>薪资（选填）</span><input value={jobForm.salary} onChange={event => setJobForm({ ...jobForm, salary: event.target.value })} maxLength={40} /></label>
+          <label><span>岗位链接（选填）</span><input value={jobForm.sourceUrl} onChange={event => setJobForm({ ...jobForm, sourceUrl: event.target.value })} inputMode="url" maxLength={500} /></label>
+          <label className="wide"><span>专业限制（选填）</span><input value={jobForm.majorsText} onChange={event => setJobForm({ ...jobForm, majorsText: event.target.value })} placeholder="如：计算机科学与技术、软件工程；不限可留空" maxLength={500} /></label>
+          <label className="wide"><span>岗位原文 *</span><textarea value={jobForm.description} onChange={event => setJobForm({ ...jobForm, description: event.target.value })} placeholder="粘贴岗位职责、任职要求和其他关键信息（至少 30 个字）" maxLength={12000} /></label>
+        </div>
+        <footer><small>岗位文字仅作为匹配材料保存，不会被当作系统指令执行。</small>
+          <button className="primary-action" disabled={saving}>{saving ? "正在保存…" : "保存岗位并建立快照"}</button></footer>
+      </form>}
+    </>}
+  </>;
 }

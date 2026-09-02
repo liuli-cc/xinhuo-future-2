@@ -1,5 +1,5 @@
-import CareerWorkbench from "@/modules/group-3-career/components/CareerWorkbench";
+import CareerHub from "@/modules/group-3-career/components/CareerHub";
 
 export default function CareerPage() {
-  return <CareerWorkbench />;
+  return <CareerHub />;
 }
