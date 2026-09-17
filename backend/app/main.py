@@ -202,13 +202,14 @@ from .modules.interview.router import router as interview_router
 from .modules.organization.router import router as organization_router
 from .modules.platform_router import router as platform_router
 from .modules.reference.router import router as reference_router
+from .modules.recruitment.router import router as recruitment_router
 from .modules.users.account_router import router as account_router
 from .modules.users.router import router as users_router
 
 for module_router in (
     auth_router, users_router, account_router, reference_router, organization_router,
     files_router, imports_router, growth_router, career_router, interview_router,
-    admin_router, platform_router,
+    admin_router, platform_router, recruitment_router,
 ):
     app.include_router(module_router, prefix="/api/v1")
 

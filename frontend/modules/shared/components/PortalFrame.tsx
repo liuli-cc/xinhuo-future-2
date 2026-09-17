@@ -94,6 +94,7 @@ const studentNav = [
   { id: "interview", href: "/interview", icon: Robot, label: "模拟面试", group: "实践" },
   { id: "resources", href: "/resources", icon: BookOpenText, label: "成长资源", group: "实践" },
   { id: "career", href: "/career", icon: Briefcase, label: "实习就业", group: "实践" },
+  { id: "resume-ai", href: "/resume-ai", icon: Briefcase, label: "AI 简历", group: "实践" },
 ];
 const teacherNav = [
   { id: "teacher", href: "/teacher", icon: UsersThree, label: "教师工作台", group: "教学" },

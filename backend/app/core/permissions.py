@@ -16,6 +16,7 @@ from typing import Any
 
 class Role(str, Enum):
     STUDENT = "student"
+    ENTERPRISE = "enterprise"
     TEACHER = "teacher"
     COUNSELOR = "counselor"
     COLLEGE_ADMIN = "college_admin"

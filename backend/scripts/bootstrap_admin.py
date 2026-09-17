@@ -21,21 +21,22 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.core.config import Settings
 from app.core.security import derive_password, validate_password_strength
+from app.db import models as all_models  # noqa: F401 — register referenced tables
 from app.modules.users.model import User
 
 
 def database_url() -> str:
     value = os.getenv("DATABASE_URL", "")
     if value:
-        return value.replace("mysql+aiomysql://", "mysql+pymysql://")
-    return Settings().database_url.replace("mysql+aiomysql://", "mysql+pymysql://")
+        return value.replace("mysql+aiomysql://", "mysql+pymysql://").replace("sqlite+aiosqlite://", "sqlite://")
+    return Settings().database_url.replace("mysql+aiomysql://", "mysql+pymysql://").replace("sqlite+aiosqlite://", "sqlite://")
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--student-id", required=True, help="administrator staff number")
     parser.add_argument("--name", required=True)
-    parser.add_argument("--role", choices=("school_admin", "admin"), default="school_admin")
+    parser.add_argument("--role", choices=("school_admin", "admin", "enterprise"), default="school_admin")
     parser.add_argument("--college", default="内蒙古师范大学")
     args = parser.parse_args()
     if not 6 <= len(args.student_id.strip()) <= 20:
