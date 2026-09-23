@@ -18,7 +18,7 @@ PORT=3100 API_UPSTREAM=http://127.0.0.1:8100 npm start
 
 ## 招聘数据库升级
 
-新增迁移 `005_recruitment_jobs.py`，在已有 `004` 后执行 `alembic upgrade head`。新增企业所属岗位、按岗位的投递去重和面试安排；历史通用投递保留原数据与状态。迁移已使用 SQLite 实测历史记录保留与防止有损回退，未对线上或 MySQL 数据库执行迁移。
+新增迁移 `005_recruitment_jobs.py`，在已有 `004` 后执行 `alembic upgrade head`。新增企业所属岗位、按岗位的投递去重和面试安排；历史通用投递保留原数据与状态。迁移已使用 SQLite 实测历史记录保留与防止有损回退，并在 GitHub CI 的独立 MySQL 8.0 实例成功运行，未对线上数据库执行迁移。
 
 ## 已做的浏览器检查
 
