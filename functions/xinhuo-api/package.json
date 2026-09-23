@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "@cloudbase/node-sdk": "^3.12.0",
-    "adm-zip": "^0.6.0",
+    "adm-zip": "0.6.1",
     "axios": "^1.19.0",
     "lodash.set": "file:vendor/lodash.set",
     "lodash.unset": "file:vendor/lodash.unset",
