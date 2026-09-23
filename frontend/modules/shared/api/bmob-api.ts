@@ -13,7 +13,11 @@ let profileCache: unknown | null | undefined;
 type ApiInput = string | URL | Request;
 
 function apiBase() {
-  return (process.env.NEXT_PUBLIC_API_BASE ?? "").trim().replace(/\/+$/, "");
+  const configured = (process.env.NEXT_PUBLIC_API_BASE ?? "").trim();
+  if (configured === "same-origin") {
+    return typeof window === "undefined" ? "http://localhost" : window.location.origin;
+  }
+  return configured.replace(/\/+$/, "");
 }
 
 function sessionToken() {
@@ -148,6 +152,8 @@ export async function apiFetch(input: ApiInput, init?: RequestInit): Promise<Res
     if (response.status === 401 && url.pathname !== "/api/auth/login") clearSession();
     return normalizeErrorResponse(response);
   } catch (error) {
+    // A stopped interview turn must remain cancelled, not become a fallback reply.
+    if (init?.signal?.aborted || (error instanceof DOMException && error.name === "AbortError")) throw error;
     const message = error instanceof Error ? error.message : "FastAPI 后端暂时不可用";
     return localError(
       /load failed|failed to fetch|networkerror/i.test(message)

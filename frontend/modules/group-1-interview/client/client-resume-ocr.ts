@@ -35,8 +35,13 @@ function normalizeOcrText(text: string) {
 async function renderPdfPages(file: File, onProgress?: (progress: ResumeOcrProgress) => void) {
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
   pdfjs.GlobalWorkerOptions.workerSrc = "/ocr/pdf.worker.min.mjs";
-  const pdf = await pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
-  const pageCount = Math.min(pdf.numPages, OCR_PDF_PAGE_LIMIT);
+  const loadingTask = pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) });
+  const pdf = await loadingTask.promise;
+  if (pdf.numPages > OCR_PDF_PAGE_LIMIT) {
+    await loadingTask.destroy();
+    throw new Error(`扫描简历最多支持 ${OCR_PDF_PAGE_LIMIT} 页，请拆分后重新上传`);
+  }
+  const pageCount = pdf.numPages;
   const images: HTMLCanvasElement[] = [];
 
   for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
@@ -60,7 +65,7 @@ async function renderPdfPages(file: File, onProgress?: (progress: ResumeOcrProgr
     images.push(canvas);
     page.cleanup();
   }
-  await pdf.cleanup();
+  await loadingTask.destroy();
   return images;
 }
 
@@ -103,6 +108,9 @@ export async function extractResumeTextWithOcr(
     }
   } finally {
     await worker.terminate();
+    for (const page of pageImages) {
+      if (page instanceof HTMLCanvasElement) { page.width = 0; page.height = 0; }
+    }
   }
 
   const text = normalizeOcrText(textParts.join("\n\n"));

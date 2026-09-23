@@ -120,8 +120,8 @@ export default function Dashboard() {
     <section className="dashboard-redesign-hero">
       <div className="dashboard-redesign-copy">
         <span>当前成长状态</span>
-        <h2>{growthStats.verifiedTasks ? `已有 ${growthStats.verifiedTasks} 项任务通过核验` : "从第一条真实成长佐证开始"}</h2>
-        <p>{growthStats.pendingTasks ? `${growthStats.pendingTasks} 项佐证正在等待审核。审核通过后，图表和成长地图会自动重绘。` : "平台不会生成默认高分。完成任务、提交成果并通过审核后，数据才会变化。"}</p>
+        <h2>{growthStats.verifiedTasks ? `已有 ${growthStats.verifiedTasks} 项任务通过核验` : "记录你的第一项成果"}</h2>
+        <p>{growthStats.pendingTasks ? `${growthStats.pendingTasks} 项佐证正在等待审核。` : "完成第一项任务，记录你的成长。"}</p>
         <div className="dashboard-hero-actions"><Link href="/portrait">查看能力画像 <ArrowUpRight size={17} /></Link><Link href="/ai">生成行动优先级 <Sparkle size={17} /></Link></div>
       </div>
       <div className="dashboard-score-orbit" aria-label={`当前证据能力指数 ${growthStats.abilityScore}`}>
@@ -145,13 +145,13 @@ export default function Dashboard() {
           { label: "创新探索", value: 0, detail: "尚无已核验证据" },
           { label: "沟通协作", value: 0, detail: "尚无已核验证据" },
           { label: "职业准备", value: 0, detail: "尚无已核验证据" },
-        ]} title="五维能力分布" description="采用同一百分制，立体纵深仅用于区分层级。" max={100} depth unit="" />
-        <AnimatedDonutChart data={evidenceData} title="成长证据状态" description="图表只统计当前读取到的真实佐证。" centerLabel="证据总数" unit="" />
+        ]} title="五维能力分布" description="了解你的优势与待提升方向。" max={100} depth unit="" />
+        <AnimatedDonutChart data={evidenceData} title="成长证据状态" description="查看成果的审核进展。" centerLabel="证据总数" unit="" />
       </>}
     </section>
 
     <section className="dashboard-feature-section">
-      <header><div><span>功能入口</span><h2>围绕一个目标，串起完整成长闭环</h2></div><p>规划、实践、核验、复盘和就业数据保持连通。</p></header>
+      <header><div><span>功能入口</span><h2>从这里，开始下一步</h2></div><p>规划成长、准备面试、发现机会。</p></header>
       <div className="dashboard-feature-mosaic">
         {features.map(feature => {
           const Icon = feature.icon;
@@ -171,7 +171,7 @@ export default function Dashboard() {
       <article className="dashboard-identity-summary">
         <div className="dashboard-avatar">{profile.name.slice(0, 1)}</div>
         <div><small>个人成长档案</small><h2>{profile.name}</h2><p>{profile.college} · {profile.major} · {profile.grade}</p></div>
-        <span><CheckCircle size={19} weight="fill" />云端已连接</span>
+        <span><CheckCircle size={19} weight="fill" />成长档案</span>
       </article>
     </section>
   </PortalFrame>;

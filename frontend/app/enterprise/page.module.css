@@ -145,3 +145,73 @@
 
 @media (max-width: 1100px) { .loginPage { grid-template-columns: 1fr; } .loginStory { min-height: 44dvh; padding: 28px 8vw; } .storyCopy { margin-top: 30px; } .storyCopy h1 { max-width: 14ch; font-size: clamp(2.4rem, 8vw, 4.3rem); } .storyFoot { margin-top: 36px; } .loginPanel { min-height: 56dvh; padding: 34px 8vw 52px; } .candidateSection { grid-template-columns: 1fr; } .listPanel { min-height: auto; } .detailPanel { min-height: auto; } }
 @media (max-width: 720px) { .workspace { display: block; } .sidebar { min-height: auto; padding: 17px 16px; border-right: 0; border-bottom: 1px solid rgba(223, 235, 250, .1); } .companyBadge, .sideNav, .sidebarFoot { display: none; } .topbar { min-height: 71px; padding: 0 18px; } .topStatus { display: none; } .content { padding: 24px 15px 42px; } .welcomeRow { align-items: start; flex-direction: column; } .welcomeRow h2 { font-size: 1.45rem; } .metrics { grid-template-columns: 1fr 1fr; } .candidateSection { grid-template-columns: 1fr; } .detailPanel { padding: 18px 16px 22px; } .loginPanel { padding: 28px 18px 40px; } .loginCard { padding: 25px 20px; } .loginPanelTop { margin-bottom: 19px; } .demoCredential { grid-template-columns: 1fr; } }
+
+.contactRow { display: flex; flex-wrap: wrap; gap: 9px 14px; padding: 14px 0; color: #587287; font-size: .72rem; }
+.contactRow a { display: inline-flex; align-items: center; gap: 5px; color: #3b78ae; text-decoration: none; overflow-wrap: anywhere; }
+.detailActions { flex-wrap: wrap; }
+.candidateAvatar, .detailAvatar { background: #548ec5; }
+.bio, .experience p, .task p { white-space: pre-wrap; overflow-wrap: anywhere; }
+.workspace button:disabled { opacity: .5; cursor: not-allowed; }
+
+.notice { margin: 0 0 20px; padding: 12px 15px; border: 1px solid #c7ddee; border-radius: 9px; color: #315f83; background: #edf6ff; font-size: .78rem; line-height: 1.6; }
+.workspaceSwitch { display: flex; flex: 0 0 auto; gap: 4px; padding: 4px; border: 1px solid #dce7ef; border-radius: 10px; background: #eaf0f6; }
+.workspaceSwitch button { min-height: 35px; padding: 0 14px; border: 0; border-radius: 7px; color: #587287; background: transparent; font-size: .73rem; font-weight: 650; }
+.workspaceSwitch button[aria-pressed="true"] { color: #245b8b; background: #fff; box-shadow: 0 1px 4px #214b7212; }
+.jobsPanel { padding: 25px; border: 1px solid #dce7ef; border-radius: 12px; background: #fff; }
+.jobsHead { display: flex; justify-content: space-between; align-items: center; gap: 18px; margin-bottom: 22px; }
+.jobsHead h2 { margin: 0 0 5px; color: #18334b; font-size: 1.1rem; }
+.jobsHead span { color: #637e93; font-size: .7rem; }
+.jobsList { display: grid; gap: 15px; }
+.jobItem { padding: 20px 0; border-top: 1px solid #e0e9f0; }
+.jobItem:last-child { padding-bottom: 0; }
+.jobTitle { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.jobTitle h3 { margin: 0; color: #244762; font-size: 1rem; }
+.jobTitle > span { padding: 4px 8px; border-radius: 6px; color: #657b8c; background: #eef2f6; font-size: .65rem; }
+.jobTitle > span[data-open="true"] { color: #287158; background: #e9f6ef; }
+.jobMeta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin: 13px 0; color: #627e94; font-size: .72rem; }
+.jobMeta span { display: inline-flex; align-items: center; gap: 4px; }
+.jobDescription { margin: 0 0 18px; color: #5d778d; font-size: .75rem; }
+.jobDescription summary { width: fit-content; cursor: pointer; color: #376c9c; line-height: 1.8; }
+.jobDescription h4 { margin: 16px 0 6px; color: #31536e; font-size: .76rem; }
+.jobDescription p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.8; }
+.jobItem footer, .jobItem footer > div { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.jobItem footer { justify-content: space-between; }
+.jobFilter { width: 100%; height: 37px; margin-top: 10px; padding: 0 10px; border: 1px solid #dce7ef; border-radius: 8px; color: #365971; background: #f8fbfd; font-size: .7rem; }
+.interviewCard { display: flex; align-items: flex-start; gap: 12px; padding: 15px; margin: 6px 0 16px; border: 1px solid #cddfee; border-radius: 10px; color: #356b96; background: #f2f8ff; }
+.interviewCard > svg { flex: 0 0 auto; margin-top: 2px; }
+.interviewCard h3 { margin: 0 0 7px; color: #2d5476; font-size: .73rem; }
+.interviewCard strong { display: block; font-size: .85rem; }
+.interviewCard p { margin: 6px 0 0; color: #52738e; font-size: .72rem; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; }
+.hiringActions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 19px; }
+.hiringActions button { min-height: 39px; font-size: .71rem; }
+.formDialog { width: min(620px, calc(100vw - 28px)); max-height: calc(100dvh - 48px); margin: auto; padding: 0; overflow-y: auto; border: 1px solid #d5e1ec; border-radius: 15px; color: #24435d; background: #fff; box-shadow: 0 20px 80px #091a2d38; }
+.formDialog::backdrop { background: #0c1c30a6; }
+.formDialog > header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 23px 26px 18px; border-bottom: 1px solid #e1eaf1; }
+.formDialog > header h2 { margin: 0; font-size: 1.1rem; }
+.formDialog > header button { display: grid; place-items: center; width: 33px; height: 33px; padding: 0; border: 0; border-radius: 7px; color: #627c91; background: #f2f6fa; }
+.editorForm { display: grid; gap: 18px; padding: 23px 26px; }
+.editorForm label { display: grid; gap: 7px; color: #3d5e77; font-size: .75rem; font-weight: 650; }
+.editorForm label small { color: #6a8091; font-size: .65rem; font-weight: 400; }
+.editorForm input, .editorForm textarea, .editorForm select { width: 100%; min-height: 42px; padding: 10px 12px; border: 1px solid #d4e1ec; border-radius: 8px; outline: 0; color: #24445e; background: #f9fbfd; font: inherit; font-size: .78rem; font-weight: 400; line-height: 1.6; }
+.editorForm textarea { resize: vertical; }
+.editorForm input::placeholder, .editorForm textarea::placeholder { color: #778ea2; }
+.editorForm input:focus, .editorForm textarea:focus, .editorForm select:focus { border-color: #6b9ecb; box-shadow: 0 0 0 3px #6fa8ff20; }
+.formGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.editorForm footer { display: flex; justify-content: flex-end; gap: 9px; padding-top: 4px; }
+.detailTop > span { letter-spacing: 0; line-height: 1.6; font-size: .7rem; }
+.detailSection > h3 { color: #294a65; font-size: .82rem; }
+.detailSection > p { color: #71889b; font-size: .73rem; }
+@media (max-width: 720px) {
+  .jobsPanel { padding: 19px 16px; }
+  .jobsHead { align-items: flex-start; }
+  .jobsHead .primaryButton { min-height: 39px; padding-inline: 12px; font-size: .71rem; }
+  .workspaceSwitch { width: 100%; }
+  .workspaceSwitch button { flex: 1; }
+  .formGrid { grid-template-columns: 1fr; }
+  .formDialog { max-height: calc(100dvh - 28px); }
+  .formDialog > header { padding: 19px 18px 16px; }
+  .editorForm { padding: 20px 18px; }
+  .jobItem footer { align-items: flex-start; flex-direction: column; }
+}
+
+.headerActions { display: flex; align-items: center; gap: 8px; }

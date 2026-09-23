@@ -152,8 +152,8 @@ export default function PortraitPage() {
       </div>
       <div className="ep-summary">
         <span>{profile.grade}　·　{profile.major}</span>
-        <h2>{profile.name}的真实成长画像</h2>
-        <p>{portrait.totalEvidence ? `已提交 ${portrait.totalEvidence} 条佐证，其中 ${portrait.verifiedEvidence} 条通过核验；只有已核验佐证才参与能力计算。` : "当前没有真实成长佐证，因此所有能力数据均为 0。提交佐证并通过管理员核验后才会建立画像。"}</p>
+        <h2>{profile.name}的成长画像</h2>
+        <p>{portrait.totalEvidence ? `已提交 ${portrait.totalEvidence} 条佐证，其中 ${portrait.verifiedEvidence} 条通过核验；只有已核验佐证才参与能力计算。` : "添加课程、项目或实践成果，逐步完善你的能力画像。"}</p>
         <div className="ep-metrics">
           <div><strong>{portrait.verifiedEvidence}</strong><span>已核验佐证</span></div>
           <div><strong>{portrait.pendingEvidence}</strong><span>待审核佐证</span></div>
@@ -178,7 +178,7 @@ export default function PortraitPage() {
         />
         <AnimatedDonutChart
           title="证据审核状态"
-          description="新增、删除或审核状态变化后，圆环会重新展开。"
+          description="查看各项成果的审核进展。"
           centerLabel="证据总数"
           data={[
             { label: "已核验", value: portrait.verifiedEvidence, detail: "参与能力分数计算", color: "var(--chart-blue-2)" },
@@ -190,13 +190,13 @@ export default function PortraitPage() {
     </section>
 
     <section className="ep-section">
-      <div className="ep-heading"><div><span>能力计算结果</span><h2>五维能力与证据覆盖</h2></div><small>分数是证据强度的结果，不代表与其他学生的排名</small></div>
+      <div className="ep-heading"><div><span>能力计算结果</span><h2>五维能力与证据覆盖</h2></div><small>查看各个维度的成长积累</small></div>
       <div className="ep-dimensions">
         {portrait.dimensions.map(item => <article className={`ep-dimension ${filter === item.name ? "selected" : ""}`} key={item.name} onClick={() => setFilter(item.name)}>
           <div><span className="ep-dimension-dot" style={{ background: dimensionColors[item.name] }} /><b>{item.name}</b><strong>{item.score}</strong></div>
           <div className="ep-bar"><i style={{ width: `${item.score}%`, background: dimensionColors[item.name] }} /></div>
           <p><span>{item.evidenceCount} 条证据</span><span>可信度 {item.confidence}%</span></p>
-          <small>{item.evidenceCount ? `有效证据权重 ${item.weightSum.toFixed(2)}` : "尚无证据，不生成默认分"}</small>
+          <small>{item.evidenceCount ? `有效证据权重 ${item.weightSum.toFixed(2)}` : "等待添加成果"}</small>
         </article>)}
       </div>
     </section>
@@ -210,7 +210,7 @@ export default function PortraitPage() {
       </article>
       <article className="ep-method portal-card">
         <span>分数怎样产生</span>
-        <h2>可解释证据计算</h2>
+        <h2>评分依据</h2>
         <div><b>来源可信度</b><i /> <b>能力相关度</b><i /> <b>成果质量</b><i /> <b>个人贡献度</b><i /> <b>时间新鲜度</b></div>
         <p>待审核或被驳回的佐证权重为 0；只有管理员核验通过后才计入。两年以上的佐证会降低时间权重。</p>
       </article>
@@ -226,7 +226,7 @@ export default function PortraitPage() {
           <div className="ep-evidence-title"><span style={{ background: dimensionColors[item.dimension] }}>{item.dimension.slice(0, 1)}</span><div><small>{item.category}　·　{item.evidenceDate}</small><h3>{item.title}</h3><p>{item.detail}</p>{item.evidenceRef && <small>核验来源：{item.evidenceRef}</small>}{item.attachmentUrl && <a className="evidence-file-link" href={item.attachmentUrl} target="_blank" rel="noreferrer">查看佐证文件：{item.attachmentName} · {Math.ceil((item.attachmentBytes ?? 0) / 1024)} KB</a>}</div><strong>{item.verificationStatus === "verified" ? `+${item.impact.toFixed(1)} 证据强度` : "暂不计分"}</strong></div>
           <div className="ep-factors"><span>来源 {item.sourceReliability}</span><span>相关 {item.relevance}</span><span>质量 {item.quality}</span><span>贡献 {item.contribution}</span><span>时间 {Math.round(item.recencyWeight * 100)}</span><em>{item.verificationStatus === "verified" ? "已核验" : item.verificationStatus === "rejected" ? `已驳回${item.reviewerNote ? `：${item.reviewerNote}` : ""}` : "待管理员核验"}</em>{item.verificationStatus !== "verified" && <button onClick={() => remove(item.id)}>删除</button>}</div>
         </article>)}
-      </div> : <div className="ep-empty"><span>证</span><b>{filter === "全部" ? "还没有真实成长证据" : `还没有“${filter}”证据`}</b><p>从一条可验证的课程、项目、竞赛或评价记录开始。</p><button onClick={() => setOpen(true)}>添加第一条证据</button></div>}
+      </div> : <div className="ep-empty"><span>证</span><b>{filter === "全部" ? "还没有成长记录" : `还没有“${filter}”证据`}</b><p>从一条可验证的课程、项目、竞赛或评价记录开始。</p><button onClick={() => setOpen(true)}>添加第一条证据</button></div>}
     </section>
 
     {open && <div className="modal-backdrop" onMouseDown={() => !saving && setOpen(false)}><form className="portal-modal ep-modal" onSubmit={submit} onMouseDown={event => event.stopPropagation()}>
@@ -239,7 +239,7 @@ export default function PortraitPage() {
         <label><span>发生日期</span><input type="date" max={new Date().toISOString().slice(0, 10)} value={form.evidenceDate} onChange={event => setForm({ ...form, evidenceDate: event.target.value })} /></label>
         <label><span>证据来源</span><select value={form.sourceType} onChange={event => setForm({ ...form, sourceType: event.target.value as EvidenceSource })}>{Object.entries(SOURCE_META).map(([value, meta]) => <option value={value} key={value}>{meta.label}（可信度 {meta.reliability}）</option>)}</select></label>
         <label className="wide"><span>成果说明</span><textarea value={form.detail} onChange={event => setForm({ ...form, detail: event.target.value })} placeholder="至少 12 个字，说明你做了什么、实际贡献和可验证结果" /></label>
-        <label className="wide"><span>上传佐证文件（推荐）</span><input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.txt" onChange={event => setFile(event.target.files?.[0] ?? null)} /><small>支持 PDF、图片、TXT，单个文件不超过 3 MB；保存后生成 SHA-256 完整性摘要。</small></label>
+        <label className="wide"><span>上传佐证文件（推荐）</span><input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.txt" onChange={event => setFile(event.target.files?.[0] ?? null)} /><small>支持 PDF、图片、TXT，单个文件不超过 3 MB。</small></label>
         <label className="wide"><span>其他可核验来源（文件和来源至少一项）</span><input value={form.evidenceRef} onChange={event => setForm({ ...form, evidenceRef: event.target.value })} placeholder="成果链接、证书编号、教务记录编号或教师评价来源" /></label>
         <label><span>与该能力的相关度</span><select value={form.relevance} onChange={event => setForm({ ...form, relevance: Number(event.target.value) })}><option value="60">部分相关·60</option><option value="80">高度相关·80</option><option value="100">直接证明·100</option></select></label>
         <label><span>成果质量</span><select value={form.quality} onChange={event => setForm({ ...form, quality: Number(event.target.value) })}><option value="60">完成基本要求·60</option><option value="75">达到良好水平·75</option><option value="90">有明确优质结果·90</option><option value="100">获得权威认可·100</option></select></label>

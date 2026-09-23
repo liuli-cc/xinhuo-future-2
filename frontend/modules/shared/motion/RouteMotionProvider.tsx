@@ -2,6 +2,7 @@
 
 import { useGSAP } from "@gsap/react";
 import { gsap } from "gsap";
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useMotionPreference } from "./motion-preference";
 import {
@@ -13,6 +14,7 @@ import {
   useEffect,
   useMemo,
   useRef,
+  useTransition,
 } from "react";
 
 gsap.registerPlugin(useGSAP);
@@ -52,49 +54,45 @@ export default function RouteMotionProvider({ children }: { children: ReactNode 
   const stageRef = useRef<HTMLDivElement>(null);
   const streakRef = useRef<HTMLDivElement>(null);
   const navigationTimeline = useRef<gsap.core.Timeline | null>(null);
-  const navigating = useRef(false);
+  const [isPending, startTransition] = useTransition();
   const enteredPathname = useRef<string | null>(null);
-  const pressRipples = useRef<Set<HTMLSpanElement>>(new Set());
   const { reducedMotion } = useMotionPreference();
-
-  const runExit = useCallback((complete: () => void) => {
-    if (navigating.current) return;
-    navigating.current = true;
-    navigationTimeline.current?.kill();
-    if (reducedMotion) {
-      complete();
-      return;
-    }
-    navigationTimeline.current = gsap.timeline({
-      defaults: { ease: "expo.out" },
-      onComplete: complete,
-    })
-      .fromTo(streakRef.current, { scaleX: 0, xPercent: -50, autoAlpha: 0 }, { scaleX: 1, xPercent: 0, autoAlpha: 1, duration: 0.19, transformOrigin: "left center" }, 0)
-      .to(stageRef.current, { x: -14, autoAlpha: 0.45, duration: 0.16 }, 0);
-  }, [reducedMotion]);
 
   const navigate = useCallback((href: string) => {
     if (!navigationAllowed()) return;
     const target = new URL(href, window.location.href);
+    if (target.origin !== window.location.origin) {
+      window.location.assign(target.href);
+      return;
+    }
     if (target.pathname === pathname && target.search === window.location.search) {
       if (target.hash) window.location.hash = target.hash;
       return;
     }
-    runExit(() => router.push(`${target.pathname}${target.search}${target.hash}`));
-  }, [pathname, router, runExit]);
+    // Dispatch immediately. An exit animation must never delay the network request.
+    startTransition(() => router.push(`${target.pathname}${target.search}${target.hash}`));
+  }, [pathname, router]);
 
   const goBack = useCallback(() => {
     if (!navigationAllowed()) return;
-    runExit(() => {
+    startTransition(() => {
       if (window.history.length > 1) router.back();
       else router.push("/dashboard");
     });
-  }, [router, runExit]);
+  }, [router]);
 
   useGSAP(() => {
-    navigating.current = false;
     navigationTimeline.current?.kill();
-    navigationTimeline.current = null;
+    if (!isPending || reducedMotion) {
+      gsap.set(streakRef.current, { autoAlpha: 0, scaleX: 0 });
+      return;
+    }
+    // Only show progress if navigation actually takes time; keep current content usable.
+    navigationTimeline.current = gsap.timeline({ delay: 0.12 })
+      .fromTo(streakRef.current, { scaleX: 0.06, autoAlpha: 0 }, { scaleX: 0.78, autoAlpha: 1, duration: 0.7, ease: "power3.out" });
+  }, { dependencies: [isPending, reducedMotion], scope: rootRef, revertOnUpdate: true });
+
+  useGSAP(() => {
     if (reducedMotion) {
       gsap.set(stageRef.current, { clearProps: "all", autoAlpha: 1 });
       gsap.set(streakRef.current, { autoAlpha: 0, scaleX: 0 });
@@ -107,14 +105,13 @@ export default function RouteMotionProvider({ children }: { children: ReactNode 
       return;
     }
     enteredPathname.current = pathname;
-    const timeline = gsap.timeline({ defaults: { ease: "expo.out" } });
-    timeline
-      .fromTo(stageRef.current, { x: 22, autoAlpha: 0.55 }, { x: 0, autoAlpha: 1, duration: 0.38, clearProps: "transform,opacity,visibility" }, 0)
-      .to(streakRef.current, { xPercent: 105, autoAlpha: 0, duration: 0.34, clearProps: "transform,opacity,visibility" }, 0);
+    gsap.fromTo(stageRef.current,
+      { opacity: 0.93 },
+      { opacity: 1, duration: 0.18, ease: "power3.out", clearProps: "opacity,visibility" },
+    );
   }, { dependencies: [pathname, reducedMotion], scope: rootRef, revertOnUpdate: true });
 
   useEffect(() => {
-    const ripples = pressRipples.current;
     const onClick = (event: MouseEvent) => {
       const target = event.target;
       if (!(target instanceof Element)) return;
@@ -126,52 +123,16 @@ export default function RouteMotionProvider({ children }: { children: ReactNode 
       navigate(anchor.href);
     };
 
-    const onPointerDown = (event: PointerEvent) => {
-      if (reducedMotion) return;
-      const target = event.target;
-      if (!(target instanceof Element)) return;
-      const control = target.closest<HTMLElement>("button, [role='button']");
-      if (!control || control.hasAttribute("disabled")) return;
-      const rect = control.getBoundingClientRect();
-      const ripple = document.createElement("span");
-      const size = Math.max(rect.width, rect.height) * 1.4;
-      ripple.className = "global-press-ripple";
-      ripple.style.width = `${size}px`;
-      ripple.style.height = `${size}px`;
-      ripple.style.left = `${event.clientX - rect.left - size / 2}px`;
-      ripple.style.top = `${event.clientY - rect.top - size / 2}px`;
-      control.appendChild(ripple);
-      ripples.add(ripple);
-      gsap.fromTo(ripple, { scale: 0.05, autoAlpha: 0.28 }, {
-        scale: 1,
-        autoAlpha: 0,
-        duration: 0.5,
-        ease: "expo.out",
-        onComplete: () => {
-          ripples.delete(ripple);
-          ripple.remove();
-        },
-      });
-    };
-
     document.addEventListener("click", onClick, true);
-    document.addEventListener("pointerdown", onPointerDown, true);
     return () => {
       document.removeEventListener("click", onClick, true);
-      document.removeEventListener("pointerdown", onPointerDown, true);
-      navigationTimeline.current?.kill();
-      ripples.forEach(ripple => {
-        gsap.killTweensOf(ripple);
-        ripple.remove();
-      });
-      ripples.clear();
     };
-  }, [navigate, pathname, reducedMotion]);
+  }, [navigate, pathname]);
 
   const value = useMemo(() => ({ goBack, navigate }), [goBack, navigate]);
 
   return <RouteMotionContext.Provider value={value}>
-    <div className="route-motion-root" ref={rootRef}>
+    <div className="route-motion-root" ref={rootRef} data-route-pending={isPending || undefined}>
       <div className="route-transition-streak" ref={streakRef} aria-hidden="true" />
       <div className="route-motion-stage" ref={stageRef}>{children}</div>
     </div>
@@ -179,5 +140,5 @@ export default function RouteMotionProvider({ children }: { children: ReactNode 
 }
 
 export function MotionAnchor({ href, children, className, onClick }: { href: string; children: ReactNode; className?: string; onClick?: (event: ReactMouseEvent<HTMLAnchorElement>) => void }) {
-  return <a href={href} className={className} onClick={onClick}>{children}</a>;
+  return <Link href={href} className={className} onClick={onClick}>{children}</Link>;
 }

@@ -30,7 +30,7 @@ export type ExpressionObservation = {
   overall: string;
 };
 
-const FILLER_WORDS = ["嗯", "啊", "呃", "哦", "那个", "就是说", "然后", "这个", "怎么说呢", "其实", "就是"];
+const FILLER_PATTERN = /嗯+|呃+|(?:^|[，。！？；,!?;\s])(怎么说呢|就是说|那个|就是|啊+)(?=[，。！？；,!?;\s]|$)/g;
 const REPEATED_PATTERN = /(.{2,10})\1{2,}/g;
 
 // STAR 结构检测
@@ -56,12 +56,14 @@ export function analyzeSpeechMetrics(
   const wordsPerMinute = Math.round(words / effectiveSeconds * 60);
 
   const totalPauseMs = pauseIntervalsMs.reduce((s, v) => s + v, 0);
-  const pauseRatio = Math.round(totalPauseMs / Math.max(1, totalAnswerMs) * 100);
+  const pauseRatio = Math.round(Math.min(totalAnswerMs, totalPauseMs) / Math.max(1, totalAnswerMs) * 100);
 
   const fillerWordCounts: Record<string, number> = {};
-  for (const fw of FILLER_WORDS) {
-    const count = (transcript.match(new RegExp(fw, "g")) || []).length;
-    if (count > 0) fillerWordCounts[fw] = count;
+  // Longest alternatives first: “就是说” is one event, never also “就是”.
+  // Ordinary transition words (“然后”, “其实”) do not prove hesitation.
+  for (const match of transcript.matchAll(FILLER_PATTERN)) {
+    const token = match[1] || match[0];
+    fillerWordCounts[token] = (fillerWordCounts[token] ?? 0) + 1;
   }
   const totalFillers = Object.values(fillerWordCounts).reduce((sum, value) => sum + value, 0);
   const fillerWordsPerMinute = Math.round(totalFillers / totalSeconds * 60 * 10) / 10;
@@ -134,7 +136,7 @@ export function describeExpression(metrics: SpeechMetrics): ExpressionObservatio
     : `STAR结构覆盖${metrics.starCompleteness}/4要素，建议检查情境、任务、行动和结果中尚未说明的部分`;
 
   const overall = [
-    metrics.wordsPerMinute > 200 ? "后半段节奏改善" : "",
+    metrics.wordsPerMinute > 200 ? "整体语速偏快" : "",
     totalFillers <= 3 ? "表达较平稳" : "",
   ].filter(Boolean).join("；") || "表达状态正常";
 

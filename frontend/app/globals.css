@@ -3215,17 +3215,22 @@ p { text-wrap: pretty; }
   background: var(--surface);
 }
 .mentor-3d-stage {
+  position: relative;
   width: 100%;
   min-height: 330px;
   border-radius: 12px;
   overflow: hidden;
+  contain: layout paint;
   background: oklch(0.13 0.026 262);
 }
-.mentor-3d-stage canvas { display: block; width: 100%; height: 100%; }
+.mentor-3d-stage canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
+.mentor-fallback { position: absolute; inset: 0; width: 100%; height: 100%; }
+.mentor-3d-stage[data-rendering="ready"] .mentor-fallback { visibility: hidden; }
+.mentor-3d-stage[data-rendering="fallback"] canvas { visibility: hidden; }
 .mentor-identity { margin-top: 0; }
-.mentor-identity strong { font-size: 1rem; letter-spacing: -.01em; }
-.mentor-identity span { font-size: .68rem; }
-.virtual-interviewer .interviewer-label { font-size: .7rem; }
+.virtual-interviewer .mentor-identity strong { color: oklch(.93 .018 255); font-size: 1rem; letter-spacing: -.01em; }
+.virtual-interviewer .mentor-identity span { color: oklch(.73 .025 255); font-size: .68rem; }
+.virtual-interviewer .interviewer-label { color: oklch(.78 .025 255); font-size: .7rem; }
 
 .model-connect-panel {
   margin: 0 0 18px;
@@ -3489,9 +3494,6 @@ p { text-wrap: pretty; }
 .interview-studio-root--active .live-transcript-feed {
   background: oklch(0.115 0.018 258 / .5);
 }
-.interview-studio-root--active .live-transcript-entry {
-  will-change: transform, opacity;
-}
 .interview-studio-root--active .live-transcript-entry p {
   border-color: oklch(0.9 0.03 255 / .12);
 }
@@ -3510,9 +3512,7 @@ p { text-wrap: pretty; }
 .report-score-ring {
   --ring-progress: 0;
   background: conic-gradient(var(--accent) calc(var(--ring-progress) * 3.6deg), var(--bg-alt) 0deg) !important;
-  will-change: transform;
 }
-.report-dimension-fill { will-change: transform; }
 .interview-studio-root--report .report-hero-v2,
 .interview-studio-root--report .report-expression {
   border-color: oklch(0.9 0.03 255 / .16);

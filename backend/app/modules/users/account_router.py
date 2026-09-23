@@ -21,6 +21,8 @@ from ..auth.dependency import CurrentUser
 from ..career.model import CareerApplication, CareerJob
 from ..evidence.model import Evidence
 from ..growth.service import GrowthService, evidence_dict
+from ..recruitment.model import Application as RecruitmentApplication, RecruitmentJob
+from ..resume.model import GeneratedResume
 from ..interview.model import InterviewSession
 from .repository import UserRepository
 from .schema import PasswordChangeRequest, ProfileUpdateRequest
@@ -155,7 +157,14 @@ async def export_account_data(current_user: CurrentUser, db: AsyncSession = Depe
     jobs = list((await db.execute(select(CareerJob).where(CareerJob.user_id == user_id))).scalars())
     applications = list((await db.execute(select(CareerApplication).where(CareerApplication.user_id == user_id))).scalars())
     interviews = list((await db.execute(select(InterviewSession).where(InterviewSession.user_id == user_id))).scalars())
+    recruitment_scope = RecruitmentApplication.enterprise_id == user_id if current_user["role"] == "enterprise" else RecruitmentApplication.student_id == user_id
+    recruitment = list((await db.scalars(select(RecruitmentApplication).where(recruitment_scope))).all())
+    published_jobs = list((await db.scalars(select(RecruitmentJob).where(RecruitmentJob.enterprise_id == user_id))).all())
+    resumes = list((await db.scalars(select(GeneratedResume).where(GeneratedResume.user_id == user_id))).all())
     content = {
+        "publishedJobs": [{"id": item.id, "title": item.title, "department": item.department, "location": item.location, "employmentType": item.employment_type, "description": item.description, "requirements": item.requirements, "status": item.status} for item in published_jobs],
+        "resumes": [{"id": item.id, "data": item.raw_content, "template": item.template_id} for item in resumes],
+        "recruitmentApplications": [{"id": item.id, "enterpriseId": item.enterprise_id, "jobId": item.job_id, "status": item.status, "resume": item.snapshot, "interview": item.interview} for item in recruitment],
         "exportVersion": "XH-EXPORT-1.0",
         "exportedAt": int(time.time() * 1000),
         "profile": public_user(current_user),

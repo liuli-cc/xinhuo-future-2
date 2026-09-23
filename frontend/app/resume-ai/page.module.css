@@ -117,3 +117,28 @@
 @media (max-width: 720px) { .shell { display: block; } .sidebar { min-height: auto; padding: 18px 16px; border-right: 0; border-bottom: 1px solid rgba(223,235,250,.1); } .backLink, .sideTitle, .steps, .sideTip, .localNote { display: none; } .topbar { min-height: 71px; padding: 0 16px; } .topActions .saved { display: none; } .topActions > button { padding: 0 9px; } .body { padding: 23px 14px 44px; } .heading { align-items: start; } .heading h2 { font-size: 1.55rem; } .formSection { padding: 17px 14px; } .formGrid { grid-template-columns: 1fr; } .wide { grid-column: auto; } .aiAction { align-items: start; flex-direction: column; } .aiAction button { align-self: stretch; } .resumePaper { padding: 27px 23px 23px; } .resumeHeader { display: block; } .resumeContact { justify-items: start; margin-top: 11px; } .previewInsight { align-items: start; flex-direction: column; } }
 
 @media print { .sidebar, .topbar, .heading, .sectionTabs, .formSection, .previewToolbar, .previewInsight, .toast { display: none !important; } .shell { display: block; background: #fff; } .main { background: #fff; } .body { display: block; padding: 0; } .previewColumn { max-width: none; } .resumePaper { min-height: 0; box-shadow: none; border: 0; border-top: 4px solid #4388c8; } }
+
+.topActions { flex-wrap: wrap; }
+.formSection select { width: 100%; min-height: 38px; padding: 8px 10px; border: 1px solid #d7e3eb; border-radius: 8px; color: #31536d; background: #fff; }
+.callout button { margin: 8px 8px 0 0; padding: 7px 12px; border: 1px solid #c5d9e8; border-radius: 7px; color: #315f87; background: #fff; }
+.callout ul { padding-left: 18px; color: #58758b; font-size: .75rem; line-height: 1.7; }
+.shell button:disabled { opacity: .5; cursor: not-allowed; }
+.resumeBlock p, .resumeExperience p { white-space: pre-wrap; overflow-wrap: anywhere; }
+@media (max-width: 720px) { .topbar { align-items: start; gap: 12px; padding-block: 16px; } .topActions { justify-content: end; gap: 6px; } }
+@media print { .editor { display: none; } .resumePaper { padding: 12mm; } .resumeExperience { break-inside: avoid; } .resumeBlock h2, .resumeExperienceHead { break-after: avoid; } }
+.jobDetails { margin: 12px 0; padding: 12px; border-radius: 8px; background: #f2f7fb; color: #496b87; font-size: .76rem; line-height: 1.7; }
+.jobDetails summary { cursor: pointer; font-weight: 650; }
+.jobDetails p { white-space: pre-wrap; }
+.applicationItem { display: grid; gap: 10px; padding: 15px 0; border-top: 1px solid #e1eaf1; color: #31536d; font-size: .78rem; }
+.applicationItem > div:first-child { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
+.applicationItem > button { justify-self: start; border: 0; padding: 4px 0; color: #657e94; background: transparent; }
+.interviewInvite { padding: 12px; border-radius: 8px; background: #ecf6f1; color: #306b54; }
+.interviewInvite p { margin: 5px 0 0; white-space: pre-wrap; }
+.deliverySection { display: grid; gap: 15px; }
+.deliverySection > h3 { margin: 0; font-size: .95rem; color: #31536d; }
+.deliverySection > h3:not(:first-child) { margin-top: 7px; }
+.deliverySection > p { margin: 0; font-size: .76rem; line-height: 1.6; color: #6a8296; }
+.deliverySection .fullLabel { margin: 0; }
+.consentRow { display: flex; align-items: flex-start; gap: 8px; font-size: .75rem; line-height: 1.65; color: #58758b; }
+.consentRow input { flex: 0 0 auto; width: 14px; height: 14px; margin: 3px 0 0; accent-color: #4388c8; }
+.deliverySection > .primaryAction { justify-self: start; margin: 0; }

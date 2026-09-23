@@ -135,7 +135,7 @@ function makeSemesters(majorValue: string): Semester[] {
       theme: "理解职业，准备第一次实习",
       summary: `了解${major}可对应的多种发展路径，把课程和实践经历整理成求职资料。`,
       phases: [
-        { title: "方向调研", detail: "了解不同职业路径的真实工作内容。", suggestion: "至少对比三种方向，不只看职位名称。" },
+        { title: "方向调研", detail: "了解不同职业路径的真实工作内容。", suggestion: "对比三种方向的工作内容和成长路径。" },
         { title: "材料整理", detail: "整理简历、作品和个人介绍。", suggestion: "只写真实经历，突出自己的行动和结果。" },
         { title: "模拟练习", detail: "通过模拟面试检查表达与准备度。", suggestion: "每次练习只重点改进一个问题。" },
         { title: "机会准备", detail: "建立实习或实践机会清单。", suggestion: "根据自己的真实时间制定投递节奏。" },
@@ -382,7 +382,7 @@ export default function GrowthMap() {
       active="map"
       eyebrow="个人成长路径"
       title="成长地图"
-      subtitle="根据你保存的年级和专业生成，不使用固定示例学生信息。"
+      subtitle="从当前学期出发，安排你的下一步。"
       actions={<button className="ghost-action" onClick={() => { setSelectedSemester(null); setSelectedPhase(null); }}>回到当前学期</button>}
     >
       <FourYearJourney semesters={journeyData} currentIndex={currentSemester} selectedIndex={semesterIndex} onSelect={chooseSemester} />
@@ -488,7 +488,7 @@ export default function GrowthMap() {
           <label><span>发生日期</span><input type="date" max={new Date().toISOString().slice(0, 10)} value={evidenceForm.evidenceDate} onChange={event => setEvidenceForm({ ...evidenceForm, evidenceDate: event.target.value })} /></label>
           <label><span>佐证来源</span><select value={evidenceForm.sourceType} onChange={event => setEvidenceForm({ ...evidenceForm, sourceType: event.target.value as EvidenceSource })}>{Object.entries(SOURCE_META).map(([value, meta]) => <option value={value} key={value}>{meta.label}</option>)}</select></label>
           <label className="wide"><span>行动与实际结果</span><textarea value={evidenceForm.detail} onChange={event => setEvidenceForm({ ...evidenceForm, detail: event.target.value })} placeholder="至少 12 个字，说明你具体完成了什么、承担了什么以及最终结果" /></label>
-          <label className="wide"><span>上传佐证文件（推荐）</span><input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.txt" onChange={event => setEvidenceFile(event.target.files?.[0] ?? null)} /><small>支持 PDF、图片、TXT，最大 3 MB；文件会记录 SHA-256 摘要。</small></label>
+          <label className="wide"><span>上传佐证文件（推荐）</span><input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.txt" onChange={event => setEvidenceFile(event.target.files?.[0] ?? null)} /><small>支持 PDF、图片、TXT，最大 3 MB。</small></label>
           <label className="wide"><span>其他可核验来源（文件和来源至少一项）</span><input value={evidenceForm.evidenceRef} onChange={event => setEvidenceForm({ ...evidenceForm, evidenceRef: event.target.value })} placeholder="成果链接、证书编号、教务记录编号或教师评价来源" /></label>
           <label><span>相关度</span><select value={evidenceForm.relevance} onChange={event => setEvidenceForm({ ...evidenceForm, relevance: Number(event.target.value) })}><option value="60">部分相关</option><option value="80">高度相关</option><option value="100">直接证明</option></select></label>
           <label><span>成果质量</span><select value={evidenceForm.quality} onChange={event => setEvidenceForm({ ...evidenceForm, quality: Number(event.target.value) })}><option value="60">达到基本要求</option><option value="75">达到良好水平</option><option value="90">有明确优质结果</option><option value="100">获得权威认可</option></select></label>

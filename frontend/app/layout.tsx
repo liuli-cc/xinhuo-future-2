@@ -9,7 +9,7 @@ export const metadata: Metadata = {
       "http://localhost:3000",
   ),
   title: "薪火·AI 大学生成长平台",
-  description: "聚合成长地图、证据型能力画像、可解释成长决策、成长资源与实习就业的学生成长中心。",
+  description: "规划成长、准备面试、制作简历，发现适合你的职业机会。",
   openGraph: {
     title: "薪火·AI 大学生成长平台",
     description: "让每一次成长，都有迹可循。",

@@ -5,6 +5,7 @@
  * 总分100：内容30 + 匹配20 + 专业20 + 逻辑15 + 表达15
  */
 
+import type { InterviewModelAnalysis } from "./interview-model";
 import type { SpeechMetrics } from "./speech-analysis";
 
 export type ScoreDimensions = {
@@ -19,7 +20,7 @@ export type AnswerEvidence = {
   highlight: string;
   gap: string;
   originalQuote: string;
-  resumeConsistent: boolean;
+  resumeConsistent: boolean | null;
   jobRelevant: boolean;
 };
 
@@ -32,6 +33,10 @@ export type ScoredAnswer = {
   evidence: AnswerEvidence;
   speechMetrics: SpeechMetrics | null;
   riskPoints: string[];
+  evaluationSource?: "practice-rubric" | "model-evidence";
+  modelEvaluation?: InterviewModelAnalysis;
+  evaluationNote?: string;
+  realtimeTurnId?: string;
 };
 
 export type InterviewReportV2 = {
@@ -64,7 +69,7 @@ function countActionVerbs(text: string): number {
 }
 
 function hasQuantified(text: string): boolean {
-  return /(?:\d+(?:\.\d+)?%?|\d+[个项次天周月人万千百]|第一|前\d|排名|提升|降低|增长|减少)/.test(text);
+  return /(?:\d+(?:\.\d+)?%?|\d+[个项次天周月人万千百]|第一|前\d)/.test(text);
 }
 
 function starScore(text: string): number {
@@ -92,7 +97,7 @@ export function scoreAnswerV2(
 
   // 内容质量 (30)
   const content = clamp(
-    12 + Math.min(10, text.length / 30)
+    (text.length ? 12 : 0) + Math.min(10, text.length / 30)
     + (quantified ? 5 : 0)
     + Math.min(3, actionCount),
   );
@@ -101,7 +106,7 @@ export function scoreAnswerV2(
   const matchedSkills = jobSkills.filter(s =>
     text.toLowerCase().includes(s.toLowerCase()),
   );
-  const roleMatch = clamp(6 + matchedSkills.length / Math.max(1, Math.min(4, jobSkills.length)) * 14);
+  const roleMatch = clamp(text.length ? 6 + matchedSkills.length / Math.max(1, Math.min(4, jobSkills.length)) * 14 : 0, 0, 20);
 
   // 专业深度 (20)
   const depthIndicators = [
@@ -178,11 +183,12 @@ export function scoreAnswerV2(
       highlight,
       gap,
       originalQuote,
-      resumeConsistent: true,
+      resumeConsistent: null,
       jobRelevant: matchedSkills.length > 0,
     },
     speechMetrics,
     riskPoints,
+    evaluationSource: "practice-rubric",
   };
 }
 
@@ -237,8 +243,9 @@ export function generateReportV2(scoredAnswers: ScoredAnswer[]): InterviewReport
   else improvements.push("更主动地与岗位要求建立关联");
   if (dimensions.logicStructure >= 12) strengths.push("回答结构清晰，逻辑完整");
   else improvements.push("采用STAR框架优化回答结构");
-  if (dimensions.languageExpression >= 12) strengths.push("语言表达流畅，口头语少");
-  else improvements.push("减少口头语和重复，提升表达流畅度");
+  const hasVoice = scoredAnswers.some(answer => answer.speechMetrics !== null);
+  if (dimensions.languageExpression >= 12) strengths.push(hasVoice ? "表达节奏清晰" : "文字表达清晰");
+  else improvements.push(hasVoice ? "练习自然停顿和完整句表达" : "让回答更简洁，重点更突出");
 
   const dimensionPlans = [
     {
@@ -259,7 +266,7 @@ export function generateReportV2(scoredAnswers: ScoredAnswer[]): InterviewReport
     },
     {
       score: dimensions.languageExpression / 15,
-      text: "进行两轮 90 秒录音复述，减少口头语和长停顿，保持稳定语速。",
+      text: hasVoice ? "进行两轮 90 秒复述，练习自然停顿和稳定语速。" : "精简本次回答的重复表述，用一句结论加具体证据重新组织。",
     },
   ];
   const actionPlan = dimensionPlans
@@ -313,4 +320,39 @@ export function generateReportV2(scoredAnswers: ScoredAnswer[]): InterviewReport
     trendNote,
     calculatedAt: new Date().toISOString(),
   };
+}
+
+/** Only model dimensions carrying a verifiable original quote can change scores. */
+export function applyModelEvaluation(scored: ScoredAnswer, analysis: InterviewModelAnalysis): ScoredAnswer {
+  const maxima: ScoreDimensions = { content: 30, roleMatch: 20, professionalDepth: 20, logicStructure: 15, languageExpression: 15 };
+  const dimensions = { ...scored.dimensions };
+  let accepted = 0;
+  for (const key of Object.keys(maxima) as Array<keyof ScoreDimensions>) {
+    const item = analysis.dimensions?.[key];
+    if (!item || !Number.isFinite(item.score) || item.quote.length < 2 || !scored.answer.includes(item.quote)) continue;
+    dimensions[key] = clamp(item.score, 0, maxima[key]);
+    accepted += 1;
+  }
+  const quote = analysis.evidence?.find(value => value.length >= 2 && scored.answer.includes(value));
+  return {
+    ...scored, dimensions,
+    score: Object.values(dimensions).reduce((sum, value) => sum + value, 0),
+    evaluationSource: accepted ? "model-evidence" : "practice-rubric",
+    modelEvaluation: analysis,
+    evidence: { ...scored.evidence,
+      highlight: analysis.strengths?.[0] || scored.evidence.highlight,
+      gap: analysis.gaps?.[0] || scored.evidence.gap,
+      originalQuote: quote || scored.evidence.originalQuote,
+    },
+  };
+}
+
+
+export async function reviewAnswerWithEvidence(scored: ScoredAnswer, request: () => Promise<InterviewModelAnalysis>): Promise<ScoredAnswer> {
+  try {
+    const reviewed = applyModelEvaluation(scored, await request());
+    return { ...reviewed, evaluationNote: reviewed.evaluationSource === "model-evidence" ? "AI 证据评估" : "AI 证据不足，采用提纲评分" };
+  } catch {
+    return { ...scored, evaluationNote: "AI 反馈暂不可用，采用提纲评分" };
+  }
 }

@@ -78,15 +78,11 @@ export default function DecisionPage() {
     active="ai"
     eyebrow="EXPLAINABLE DECISION ENGINE"
     title="成长决策引擎"
-    subtitle="用真实证据计算能力差距与行动优先级；当前版本不调用外部大模型。"
+    subtitle="选择目标，找到接下来值得投入的事。"
   >
-    <section className="decision-disclosure">
-      <span>规则引擎 · {plan?.engineVersion ?? "XH-DPE-1.0"}</span>
-      <p>系统负责计算与排序，不虚构经历，也不把推荐伪装成 AI 结论。每一项建议都可以查看影响因素。</p>
-    </section>
 
     <section className="decision-target portal-card">
-      <div><span>TARGET PROFILE</span><h2>选择你的发展目标</h2><p>目标只改变能力权重，不会修改你的真实能力分。</p></div>
+      <div><span>TARGET PROFILE</span><h2>选择你的发展目标</h2><p>选择你当前想探索的方向。</p></div>
       <select value={target} onChange={event => setTarget(event.target.value)}>{profiles.length ? profiles.map(item => <option value={item.id} key={item.id}>{item.label}</option>) : <option value="exploration">探索方向</option>}</select>
     </section>
 

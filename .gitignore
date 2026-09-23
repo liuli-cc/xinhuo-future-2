@@ -45,6 +45,7 @@ frontend/next-env.d.ts
 /.wrangler/
 /outputs/
 /work/
+/.preview/
 /*.tar.gz
 
 # python

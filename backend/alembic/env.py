@@ -35,7 +35,7 @@ from app.modules.career.model import (
     CandidatePush, StudentDataAuthorization,
 )
 from app.modules.resume.model import GeneratedResume, ResumeTemplate
-from app.modules.recruitment.model import Application
+from app.modules.recruitment.model import Application, RecruitmentJob
 from app.modules.interview.model import InterviewSession, ResumeUploadChunk
 from app.modules.admin.model import AuditLog, RecoveryRequest, DeletionRequest
 from app.modules.files.model import File

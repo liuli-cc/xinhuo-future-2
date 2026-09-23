@@ -83,10 +83,10 @@ export async function downloadInterviewReportWord(
       ],
     }),
     new Paragraph({ heading: HeadingLevel.HEADING_1, children: [text("口语表达观察", true)], spacing: { before: 260 } }),
-    bullet(`平均语速：${report.expressionSummary.averageWordsPerMinute} 字/分`),
-    bullet(`平均停顿占比：${report.expressionSummary.averagePauseRatio}%`),
-    bullet(`平均开口前思考：${report.expressionSummary.averageThinkingSeconds} 秒`),
-    bullet(`口头语：${report.expressionSummary.totalFillers} 次（${report.expressionSummary.fillerWordsPerMinute} 次/分）`),
+    bullet(`平均语速：${report.expressionSummary.answersWithVoice ? report.expressionSummary.averageWordsPerMinute : "—"} 字/分`),
+    bullet(`平均停顿占比：${report.expressionSummary.answersWithVoice ? report.expressionSummary.averagePauseRatio : "—"}%`),
+    bullet(`平均开口前思考：${report.expressionSummary.answersWithVoice ? report.expressionSummary.averageThinkingSeconds : "—"} 秒`),
+    bullet(`口头语：${report.expressionSummary.answersWithVoice ? report.expressionSummary.totalFillers : "—"} 次（${report.expressionSummary.answersWithVoice ? report.expressionSummary.fillerWordsPerMinute : "—"} 次/分）`),
     bullet(report.expressionSummary.observation),
     new Paragraph({ heading: HeadingLevel.HEADING_1, children: [text("回答亮点", true)], spacing: { before: 220 } }),
     ...report.strengths.map(bullet),
@@ -111,7 +111,7 @@ export async function downloadInterviewReportWord(
     ]),
     new Paragraph({
       children: [new TextRun({
-        text: "说明：本报告用于模拟练习反馈，不代表真实招聘结果。外部 AI 只负责提问和提取证据，最终分数由规则引擎计算。",
+        text: "评估依据：回答原文、练习量表与可用语音指标；带原文证据的 AI 评估参与计分。语气词以转写为准，停顿为采样估计。分数用于模拟练习。",
         color: "666666",
         font: "Microsoft YaHei",
         size: 18,
@@ -257,8 +257,8 @@ export async function downloadInterviewReportPdf(
 
   drawRule();
   heading("口语表达观察");
-  drawText(`平均语速 ${report.expressionSummary.averageWordsPerMinute} 字/分　·　平均停顿 ${report.expressionSummary.averagePauseRatio}%`, { size: 25 });
-  drawText(`开口前思考 ${report.expressionSummary.averageThinkingSeconds} 秒　·　口头语 ${report.expressionSummary.totalFillers} 次（${report.expressionSummary.fillerWordsPerMinute} 次/分）`, { size: 25 });
+  drawText(`平均语速 ${report.expressionSummary.answersWithVoice ? report.expressionSummary.averageWordsPerMinute : "—"} 字/分　·　平均停顿 ${report.expressionSummary.answersWithVoice ? report.expressionSummary.averagePauseRatio : "—"}%`, { size: 25 });
+  drawText(`开口前思考 ${report.expressionSummary.answersWithVoice ? report.expressionSummary.averageThinkingSeconds : "—"} 秒　·　口头语 ${report.expressionSummary.answersWithVoice ? report.expressionSummary.totalFillers : "—"} 次（${report.expressionSummary.answersWithVoice ? report.expressionSummary.fillerWordsPerMinute : "—"} 次/分）`, { size: 25 });
   drawText(report.expressionSummary.observation, { size: 25, color: "#50586d", after: 24 });
 
   const drawList = (title: string, items: string[]) => {
@@ -292,7 +292,7 @@ export async function downloadInterviewReportPdf(
   });
 
   drawRule();
-  drawText("说明：本报告用于模拟练习反馈，不代表真实招聘结果。外部 AI 只负责提问和提取证据，最终分数由规则引擎计算。", {
+  drawText("评估依据：回答原文、练习量表与可用语音指标；带原文证据的 AI 评估参与计分。语气词以转写为准，停顿为采样估计。分数用于模拟练习。", {
     size: 21,
     color: "#747b8e",
     after: 0,

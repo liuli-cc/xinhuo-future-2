@@ -87,3 +87,41 @@ test("五维分值按30+20+20+15+15直接合成百分制总分", () => {
   );
   assert.ok(scored.score >= 60, `score=${scored.score}`);
 });
+
+test("matching many job skills cannot exceed the dimension ceiling", () => {
+  const scored = scoreAnswerV2("项目", "Java Python SQL React Vue Go Docker Linux", 60, ["Java", "Python", "SQL", "React", "Vue", "Go", "Docker", "Linux"], null);
+  assert.equal(scored.dimensions.roleMatch, 20);
+  assert.equal(scored.evidence.resumeConsistent, null);
+  assert.equal(scored.score, Object.values(scored.dimensions).reduce((sum, value) => sum + value, 0));
+});
+
+test("a score adjustment needs an actual quote from the answer", async () => {
+  const { applyModelEvaluation } = await import("../modules/group-1-interview/client/scoring-v2.ts");
+  const scored = scoreAnswerV2("项目", "我负责接口测试，完成了12个用例。", 60, [], null);
+  const checked = applyModelEvaluation(scored, {
+    summary: "", strengths: [], gaps: [], evidence: ["我做过火箭"], nextFocus: "",
+    dimensions: {
+      content: { score: 999, quote: "完成了12个用例", reason: "交付具体" },
+      professionalDepth: { score: 20, quote: "我做过火箭", reason: "伪造证据" },
+    },
+  });
+  assert.equal(checked.dimensions.content, 30);
+  assert.equal(checked.dimensions.professionalDepth, scored.dimensions.professionalDepth);
+  assert.equal(checked.evidence.originalQuote, scored.evidence.originalQuote);
+  assert.equal(checked.evaluationSource, "model-evidence");
+});
+
+test("native transcript review uses anchored dimensions and explicitly falls back on provider failure", async () => {
+  const { reviewAnswerWithEvidence } = await import("../modules/group-1-interview/client/scoring-v2.ts");
+  const original = scoreAnswerV2("你负责什么", "我完成了12个测试用例。", 20, [], null);
+  original.realtimeTurnId = "native-1";
+  const reviewed = await reviewAnswerWithEvidence(original, async () => ({ summary: "", strengths: [], gaps: [], evidence: [], nextFocus: "",
+    dimensions: { content: { score: 27, quote: "完成了12个测试用例", reason: "有明确交付" } } }));
+  assert.equal(reviewed.dimensions.content, 27);
+  assert.equal(reviewed.evaluationNote, "AI 证据评估");
+  assert.equal(reviewed.realtimeTurnId, "native-1");
+  const fallback = await reviewAnswerWithEvidence(original, async () => { throw new Error("offline"); });
+  assert.deepEqual(fallback.dimensions, original.dimensions);
+  assert.equal(fallback.evaluationSource, "practice-rubric");
+  assert.match(fallback.evaluationNote!, /采用提纲评分/);
+});

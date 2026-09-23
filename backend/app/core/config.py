@@ -75,6 +75,13 @@ class Settings(BaseSettings):
     LLM_MAX_CONCURRENCY: int = 4
     ALLOW_CLIENT_LLM_KEYS: bool = False
 
+    # Optional direct speech-to-speech; separate key, never falls back to a text key.
+    OPENAI_REALTIME_API_KEY: str = ""
+    REALTIME_MODEL: str = "gpt-realtime-2.1"
+    REALTIME_VOICE: str = "marin"
+    REALTIME_VAD_MODE: str = "semantic_vad"
+    REALTIME_MAX_SECONDS: int = 900
+
     # ── Tencent Cloud ASR / TTS ──────────────────────────────
     TENCENT_SECRET_ID: str = ""
     TENCENT_SECRET_KEY: str = ""
