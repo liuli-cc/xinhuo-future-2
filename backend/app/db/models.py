@@ -12,6 +12,7 @@ from ..modules.interview.model import InterviewSession, ResumeUploadChunk
 from ..modules.organization.model import *  # noqa: F403
 from ..modules.reference.model import *  # noqa: F403
 from ..modules.resume.model import GeneratedResume, ResumeTemplate
+from ..modules.recruitment.model import Application, RecruitmentJob
 from ..modules.users.model import StudentPrivateProfile, StudentProfile, TeacherProfile, User, UserSession
 
 __all__ = [

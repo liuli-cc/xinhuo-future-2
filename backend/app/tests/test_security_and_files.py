@@ -32,7 +32,7 @@ def test_production_configuration_rejects_unsafe_defaults():
 def test_docx_resume_text_extraction():
     stream = io.BytesIO()
     with zipfile.ZipFile(stream, "w") as archive:
-        archive.writestr("word/document.xml", "<w:document><w:body><w:p><w:r><w:t>张三</w:t></w:r></w:p><w:p><w:r><w:t>人工智能学院 本科</w:t></w:r></w:p></w:body></w:document>")
+        archive.writestr("word/document.xml", '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>张三</w:t></w:r></w:p><w:p><w:r><w:t>人工智能学院 本科</w:t></w:r></w:p></w:body></w:document>')
     text = _resume_text_from_binary(
         stream.getvalue(),
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",

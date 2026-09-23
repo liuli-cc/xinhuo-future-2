@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { endpointSilenceMs, isLikelyPlaybackEcho } from "@/modules/group-1-interview/client/conversation-turn";
 import { analyzeVoiceFrames, type VoiceCaptureStats, type VoiceFrame } from "@/modules/group-1-interview/client/wav-audio";
 
 type RecognitionAlternative = {
@@ -60,6 +61,9 @@ interface ContinuousSpeechRecognitionProps {
   active: boolean;
   turnKey: number;
   disabled?: boolean;
+  speaking?: boolean;
+  spokenText?: string;
+  onSpeechStart?: () => void;
   maxDurationMs?: number;
   silenceMs?: number;
   onInterimChange?: (text: string) => void;
@@ -89,7 +93,10 @@ export default function ContinuousSpeechRecognition({
   turnKey,
   disabled = false,
   maxDurationMs = 90_000,
-  silenceMs = 5_000,
+  silenceMs = 1_500,
+  speaking = false,
+  spokenText = "",
+  onSpeechStart,
   onInterimChange,
   onAudioLevel,
   onStatusChange,
@@ -98,6 +105,13 @@ export default function ContinuousSpeechRecognition({
 }: ContinuousSpeechRecognitionProps) {
   const [status, setStatus] = useState<LiveSpeechStatus>("idle");
   const [interim, setInterim] = useState("");
+  const playbackRef = useRef({ speaking, spokenText });
+  useEffect(() => { playbackRef.current = { speaking, spokenText }; }, [speaking, spokenText]);
+  const announcedSpeechRef = useRef(false);
+  const previousFrameAtRef = useRef(0);
+  const wasPlayingRef = useRef(false);
+  const lastMeterNotifyRef = useRef(0);
+  const sessionRef = useRef(0);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const contextRef = useRef<AudioContext | null>(null);
@@ -118,6 +132,7 @@ export default function ContinuousSpeechRecognition({
   const framesRef = useRef<VoiceFrame[]>([]);
   const callbacksRef = useRef({
     onInterimChange,
+    onSpeechStart,
     onAudioLevel,
     onStatusChange,
     onComplete,
@@ -127,12 +142,13 @@ export default function ContinuousSpeechRecognition({
   useEffect(() => {
     callbacksRef.current = {
       onInterimChange,
+      onSpeechStart,
       onAudioLevel,
       onStatusChange,
       onComplete,
       onError,
     };
-  }, [onAudioLevel, onComplete, onError, onInterimChange, onStatusChange]);
+  }, [onAudioLevel, onComplete, onError, onInterimChange, onSpeechStart, onStatusChange]);
 
   const updateStatus = useCallback((next: LiveSpeechStatus) => {
     setStatus(next);
@@ -169,6 +185,11 @@ export default function ContinuousSpeechRecognition({
     const recognition = recognitionRef.current;
     recognitionRef.current = null;
     if (!recognition) return;
+    recognition.onresult = null;
+    recognition.onspeechstart = null;
+    recognition.onspeechend = null;
+    recognition.onstart = null;
+    recognition.onaudiostart = null;
     recognition.onend = null;
     recognition.onerror = null;
     try {
@@ -180,7 +201,8 @@ export default function ContinuousSpeechRecognition({
   const finishTurn = useCallback(async () => {
     if (completedRef.current) return;
     const text = `${finalTextRef.current} ${interimTextRef.current}`.replace(/\s+/g, " ").trim();
-    if (text.length < 2) return;
+    if (!text) return;
+    const session = sessionRef.current;
     completedRef.current = true;
     desiredActiveRef.current = false;
     clearTimers();
@@ -189,6 +211,7 @@ export default function ContinuousSpeechRecognition({
     const durationMs = Math.max(1, Date.now() - startedAtRef.current);
     const stats = analyzeVoiceFrames(framesRef.current, contextRef.current?.sampleRate ?? 16_000);
     await releaseMeter();
+    if (session !== sessionRef.current) return;
     setInterim(text);
     callbacksRef.current.onInterimChange?.(text);
     callbacksRef.current.onComplete(text, durationMs, stats);
@@ -196,11 +219,12 @@ export default function ContinuousSpeechRecognition({
 
   const scheduleFinish = useCallback(() => {
     if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-    silenceTimerRef.current = setTimeout(() => void finishTurn(), silenceMs);
+    silenceTimerRef.current = setTimeout(() => void finishTurn(), endpointSilenceMs(`${finalTextRef.current} ${interimTextRef.current}`, silenceMs));
   }, [finishTurn, silenceMs]);
 
   const startMeter = useCallback(async () => {
     if (!navigator.mediaDevices?.getUserMedia || !window.AudioContext) return;
+    const session = sessionRef.current;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
@@ -210,12 +234,17 @@ export default function ContinuousSpeechRecognition({
           autoGainControl: true,
         },
       });
-      if (!desiredActiveRef.current) {
+      if (!desiredActiveRef.current || session !== sessionRef.current) {
         stream.getTracks().forEach(track => track.stop());
         return;
       }
       const context = new AudioContext();
       await context.resume();
+      if (!desiredActiveRef.current || session !== sessionRef.current) {
+        stream.getTracks().forEach(track => track.stop());
+        await context.close();
+        return;
+      }
       const source = context.createMediaStreamSource(stream);
       const analyser = context.createAnalyser();
       analyser.fftSize = 512;
@@ -236,9 +265,25 @@ export default function ContinuousSpeechRecognition({
           sumSquares += normalized * normalized;
         }
         const rms = Math.sqrt(sumSquares / samples.length);
+        if (wasPlayingRef.current !== playbackRef.current.speaking) {
+          wasPlayingRef.current = playbackRef.current.speaking;
+          // Do not count time spent hearing the interviewer's question as hesitation.
+          startedAtRef.current = Date.now();
+          framesRef.current = [];
+          previousFrameAtRef.current = 0;
+          lastMeterNotifyRef.current = 0;
+        }
         const atMs = Date.now() - startedAtRef.current;
-        framesRef.current.push({ atMs, durationMs: 1000 / 30, rms });
-        callbacksRef.current.onAudioLevel?.(Math.min(1, rms * 11));
+        const durationMs = Math.min(100, Math.max(0, atMs - previousFrameAtRef.current));
+        previousFrameAtRef.current = atMs;
+        if (!playbackRef.current.speaking) {
+          framesRef.current.push({ atMs, durationMs, rms });
+        }
+        // React should not render the entire interview 120 times per second.
+        if (atMs - lastMeterNotifyRef.current >= 65) {
+          lastMeterNotifyRef.current = atMs;
+          callbacksRef.current.onAudioLevel?.(Math.min(1, rms * 11));
+        }
         animationRef.current = requestAnimationFrame(tick);
       };
       animationRef.current = requestAnimationFrame(tick);
@@ -271,7 +316,12 @@ export default function ContinuousSpeechRecognition({
     recognition.onstart = markListening;
     recognition.onaudiostart = markListening;
     recognition.onspeechstart = () => {
+      if (playbackRef.current.speaking) return;
       if (!speechStartedAtRef.current) speechStartedAtRef.current = Date.now();
+      if (!announcedSpeechRef.current) {
+        announcedSpeechRef.current = true;
+        callbacksRef.current.onSpeechStart?.();
+      }
       updateStatus("hearing");
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
     };
@@ -285,12 +335,21 @@ export default function ContinuousSpeechRecognition({
         if (result.isFinal) finalDelta += `${transcript} `;
         else interimDelta += `${transcript} `;
       }
+      const heard = `${finalDelta} ${interimDelta}`.trim();
+      if (!heard) return;
+      if (playbackRef.current.speaking && isLikelyPlaybackEcho(heard, playbackRef.current.spokenText)) return;
+      if (!announcedSpeechRef.current) {
+        announcedSpeechRef.current = true;
+        // Trigger before publishing text so stale TTS callbacks cannot reset this turn.
+        callbacksRef.current.onSpeechStart?.();
+      }
+      updateStatus("hearing");
       if (finalDelta) finalTextRef.current = `${finalTextRef.current} ${finalDelta}`.trim();
       interimTextRef.current = interimDelta.trim();
       const combined = `${finalTextRef.current} ${interimTextRef.current}`.replace(/\s+/g, " ").trim();
       setInterim(combined);
       callbacksRef.current.onInterimChange?.(combined);
-      if (finalDelta) scheduleFinish();
+      scheduleFinish();
     };
     recognition.onspeechend = () => {
       if (finalTextRef.current || interimTextRef.current) scheduleFinish();
@@ -307,10 +366,7 @@ export default function ContinuousSpeechRecognition({
     recognition.onend = () => {
       recognitionRef.current = null;
       if (!desiredActiveRef.current || completedRef.current) return;
-      if (finalTextRef.current || interimTextRef.current) {
-        scheduleFinish();
-        return;
-      }
+      if (finalTextRef.current || interimTextRef.current) scheduleFinish();
       restartTimerRef.current = setTimeout(() => {
         if (desiredActiveRef.current && !completedRef.current) restartRecognitionRef.current();
       }, 260);
@@ -330,6 +386,7 @@ export default function ContinuousSpeechRecognition({
   }, [startRecognition]);
 
   useEffect(() => {
+    sessionRef.current += 1;
     const shouldListen = active && !disabled;
     desiredActiveRef.current = shouldListen;
     if (!shouldListen) {
@@ -346,6 +403,9 @@ export default function ContinuousSpeechRecognition({
     framesRef.current = [];
     startedAtRef.current = Date.now();
     speechStartedAtRef.current = 0;
+    announcedSpeechRef.current = false;
+    previousFrameAtRef.current = 0;
+    lastMeterNotifyRef.current = 0;
     setInterim("");
     callbacksRef.current.onInterimChange?.("");
     updateStatus("starting");
@@ -373,6 +433,7 @@ export default function ContinuousSpeechRecognition({
     }, maxDurationMs);
 
     return () => {
+      sessionRef.current += 1;
       desiredActiveRef.current = false;
       clearTimers();
       stopRecognition(true);
@@ -395,9 +456,9 @@ export default function ContinuousSpeechRecognition({
   const label = status === "starting"
     ? "正在连接麦克风…"
     : status === "listening"
-      ? "请开始回答，停顿后会自动继续"
+      ? "随时开口，我在听"
       : status === "hearing"
-        ? "正在听你回答，思考停顿不会打断"
+        ? "正在听你说…"
         : status === "finalizing"
           ? "正在整理回答…"
           : status === "unsupported"
@@ -411,13 +472,13 @@ export default function ContinuousSpeechRecognition({
       <span className="live-speech-orb" aria-hidden="true" />
       <div className="live-speech-copy">
         <b>{label}</b>
-        <p>{interim || "识别内容会在这里实时出现；允许“嗯、啊”和自然思考，原始录音不会保存。"}</p>
+        <p>{interim || "开口后显示转写"}</p>
       </div>
       {(status === "listening" || status === "hearing") && (
         <button
           type="button"
           className="live-answer-finished"
-          disabled={interim.trim().length < 2}
+          disabled={interim.trim().length < 1}
           onClick={() => void finishTurn()}
         >
           我说完了

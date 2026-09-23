@@ -33,6 +33,7 @@ from ..growth.model import (
 from ..growth.service import evidence_dict
 from ..imports.model import DataImportBatch
 from ..interview.model import InterviewSession, ResumeUploadChunk
+from ..recruitment.model import Application as RecruitmentApplication, RecruitmentJob
 from ..resume.model import GeneratedResume
 from ..users.model import StudentPrivateProfile, StudentProfile, TeacherProfile, User, UserSession
 from ..users.repository import UserRepository
@@ -302,6 +303,8 @@ async def complete_deletion(payload: DeletionCompleteInput, current_user: Curren
     await db.execute(delete(RecommendationFeedback).where(RecommendationFeedback.user_id == payload.userId))
     await db.execute(delete(CandidatePush).where(CandidatePush.user_id == payload.userId))
     await db.execute(delete(StudentDataAuthorization).where(StudentDataAuthorization.user_id == payload.userId))
+    await db.execute(delete(RecruitmentApplication).where((RecruitmentApplication.student_id == payload.userId) | (RecruitmentApplication.enterprise_id == payload.userId)))
+    await db.execute(delete(RecruitmentJob).where(RecruitmentJob.enterprise_id == payload.userId))
     await db.execute(delete(GeneratedResume).where(GeneratedResume.user_id == payload.userId))
     await db.execute(delete(CareerJob).where(CareerJob.user_id == payload.userId))
     await db.execute(delete(EvidenceReview).where(EvidenceReview.evidence_id.in_(select(Evidence.id).where(Evidence.user_id == payload.userId))))

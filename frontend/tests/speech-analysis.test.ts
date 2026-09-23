@@ -18,7 +18,7 @@ test("停顿计算", () => {
 test("口头语统计", () => {
   const text = "嗯，就是说，我在那个项目中，然后负责了那个接口开发，就是说完成了任务。然后呢，还有就是嗯，跟团队协作。";
   const metrics = analyzeSpeechMetrics(text, 20000, 18000, [], 1000, [], 180000);
-  assert.ok(metrics.fillerWordCounts["就是说"] >= 2);
+  assert.equal(metrics.fillerWordCounts["就是说"], 1); // 句中的“就是说完成了任务”有实际语义。
   assert.ok(Object.values(metrics.fillerWordCounts).reduce((a, b) => a + b, 0) > 0);
   assert.ok(metrics.fillerWordsPerMinute > 0);
 });
@@ -50,4 +50,13 @@ test("默认指标为全零", () => {
   assert.equal(m.wordsPerMinute, 0);
   assert.equal(m.pauseCount, 0);
   assert.equal(m.starCompleteness, 0);
+});
+
+test("ordinary transitions and sentence-final particles are not treated as hesitation", () => {
+  const metrics = analyzeSpeechMetrics("然后我完成那个项目，这个方案其实就是更简单啊。", 10000, 9000, [], 1000, []);
+  assert.equal(Object.values(metrics.fillerWordCounts).reduce((a, b) => a + b, 0), 0);
+  const filled = analyzeSpeechMetrics("嗯，就是说，我负责开发。呃，那个，测试也由我负责。", 10000, 9000, [], 1000, []);
+  assert.equal(filled.fillerWordCounts["就是说"], 1);
+  assert.equal(filled.fillerWordCounts["就是"], undefined);
+  assert.equal(filled.fillerWordCounts["那个"], 1);
 });

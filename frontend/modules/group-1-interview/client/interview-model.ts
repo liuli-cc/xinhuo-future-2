@@ -73,6 +73,8 @@ export type InterviewModelAnalysis = {
   gaps: string[];
   evidence: string[];
   nextFocus: string;
+  dimensions?: Partial<Record<"content" | "roleMatch" | "professionalDepth" | "logicStructure" | "languageExpression", { score: number; quote: string; reason: string }>>;
+  skillVersion?: string;
 };
 
 export type InterviewTranscriptItem = {

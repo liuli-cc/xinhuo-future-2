@@ -45,6 +45,7 @@ frontend/next-env.d.ts
 /.wrangler/
 /outputs/
 /work/
+/.preview/
 /*.tar.gz
 
 # python
@@ -58,6 +59,7 @@ build/
 .venv/
 venv/
 backend/.env
+backend/*.db
 backend/storage/
 storage/
 

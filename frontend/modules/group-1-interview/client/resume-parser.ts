@@ -61,7 +61,8 @@ export function validateResumeFile(name: string, size: number, mimeType: string)
   // Safari and some office suites report an empty or generic MIME type. The
   // backend verifies the file signature, so do not reject those valid files in
   // the browser.
-  if (mimeType && mimeType !== "application/octet-stream" && !ALLOWED_RESUME_MIME.includes(mimeType)) {
+  const officeZipMime = ext === ".docx" && ["application/zip", "application/x-zip-compressed"].includes(mimeType);
+  if (mimeType && mimeType !== "application/octet-stream" && !officeZipMime && !ALLOWED_RESUME_MIME.includes(mimeType)) {
     return `文件类型 ${mimeType} 与扩展名不匹配，请重新导出标准文档或图片文件`;
   }
   return null;

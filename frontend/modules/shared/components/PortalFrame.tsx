@@ -94,6 +94,7 @@ const studentNav = [
   { id: "interview", href: "/interview", icon: Robot, label: "模拟面试", group: "实践" },
   { id: "resources", href: "/resources", icon: BookOpenText, label: "成长资源", group: "实践" },
   { id: "career", href: "/career", icon: Briefcase, label: "实习就业", group: "实践" },
+  { id: "resume-ai", href: "/resume-ai", icon: Briefcase, label: "AI 简历", group: "实践" },
 ];
 const teacherNav = [
   { id: "teacher", href: "/teacher", icon: UsersThree, label: "教师工作台", group: "教学" },
@@ -197,7 +198,7 @@ export default function PortalFrame({
         </section>)}
       </nav>
       <div className="app-sidebar-foot">
-        <div className="app-cloud-note"><ShieldCheck size={18} weight="duotone" /><span><b>云端档案已连接</b><small>权限和数据按角色隔离</small></span></div>
+        <div className="app-cloud-note"><ShieldCheck size={18} weight="duotone" /><span><b>我的成长档案</b><small>记录每一步成长</small></span></div>
         <button className="app-sidebar-collapse" onClick={() => setCollapsed(value => !value)} aria-label={collapsed ? "展开侧栏" : "收起侧栏"}><SidebarSimple size={19} weight="duotone" /><span>{collapsed ? "展开" : "收起侧栏"}</span></button>
       </div>
     </aside>
@@ -211,7 +212,7 @@ export default function PortalFrame({
           <div className="app-breadcrumb"><small>{eyebrow || "薪火成长平台"}</small><b>{title}</b></div>
         </div>
         <div className="app-topbar-right">
-          <span className="app-cloud-status"><i />平台服务已连接</span>
+          <span className="app-cloud-status"><i />成长工作台</span>
           <Link className="app-topbar-icon" href={profile.role === "student" ? "/growth-map" : homeHref} aria-label="成长提醒"><Bell size={20} weight="duotone" />{storageWarning && <i />}</Link>
           <div className="app-profile-menu" ref={profileMenuRef}>
             <button className="app-profile-trigger" onClick={() => setProfileOpen(value => !value)} aria-expanded={profileOpen} aria-haspopup="dialog">

@@ -40,6 +40,7 @@ const emptyRegistration: Registration = {
 function destination(role: string, forcePasswordChange: boolean) {
   if (forcePasswordChange) return "/account?required=1";
   if (role === "student") return "/dashboard";
+  if (role === "enterprise") return "/enterprise";
   if (role === "teacher" || role === "counselor") return "/teacher";
   return "/admin";
 }
@@ -168,7 +169,7 @@ export default function LoginPage() {
           </div>
           <div className={error || notice ? `form-error show recovery-message ${notice ? "success" : ""}` : "form-error"}><span>{notice ? "✓" : "!"}</span>{error || notice || "请填写账号与姓名"}</div>
           <button className={saving ? "submit-profile saving" : "submit-profile"} type="submit" disabled={saving}>{saving ? "正在提交申请…" : <>提交找回申请 <span>→</span></>}</button>
-          <p className="agreement">为防止账号枚举，无论信息是否匹配，页面都会返回相同提示</p>
+          <p className="agreement">提交后请联系学校管理员核验身份</p>
         </form> : <form onSubmit={submitRegistration}>
           <div className="profile-card-head"><span>{registration.accountType === "teacher" ? "CREATE TEACHER ACCOUNT" : "CREATE STUDENT ACCOUNT"}</span><h2>{registration.accountType === "teacher" ? "注册教师账号" : "注册学生账号"}</h2><p>{registration.accountType === "teacher" ? "填写真实工号、院系和负责班级，提交后由管理员审核。" : "填写真实学籍与班级信息，提交后由本班教师或管理员审核。"}</p></div>
           <div className="registration-role-picker" role="group" aria-label="注册身份">

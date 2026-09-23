@@ -36,7 +36,7 @@ class LLMClient:
 
     @property
     def configured(self) -> bool:
-        return bool(self.settings.DEEPSEEK_API_KEY or self.settings.LLM_API_KEY)
+        return bool(self.api_key(self.settings.LLM_PROVIDER))
 
     async def chat(
         self,
@@ -61,7 +61,7 @@ class LLMClient:
             "model": selected_model,
             "messages": messages,
             "temperature": max(0, min(1, temperature)),
-            "max_tokens": max(64, min(2000, max_tokens)),
+            "max_tokens": max(64, min(4096, max_tokens)),
         }
         timeout = aiohttp.ClientTimeout(total=self.settings.LLM_TIMEOUT_SECONDS)
         started = time.perf_counter()
